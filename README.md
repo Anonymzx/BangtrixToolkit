@@ -104,6 +104,15 @@ git clone https://github.com/Anonymzx/BangtrixTranslateUniversal.git
 - Enable **enable_cache** to avoid repeated translation requests.
 - Ideal for multi-language workflows and AI generative prompts.
 
+---
+
+# Sample
+
+<img width="570" height="792" alt="image" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
+
+<img width="1800" height="1121" alt="image" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
+
+
 
 
 
