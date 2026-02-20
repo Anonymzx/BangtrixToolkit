@@ -1,5 +1,7 @@
 # BangtrixTranslateUniversal
 
+ComfyUI custom node repository.
+
 **BangtrixTranslateUniversal** is a **Custom Node for ComfyUI** that translates text from one language to another in real-time. This node is designed for AI generative workflows in ComfyUI that require multi-language prompts.
 
 ---
