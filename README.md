@@ -66,9 +66,9 @@ git clone https://github.com/Anonymzx/BangtrixTranslateUniversal.git
 4. Search:
    ```bash
    BangtrixTranslateUniversal
-Click:
-Install
-Restart ComfyUI
+5. Click:
+   - `Install`
+   - `Restart ComfyUI`
 
 ## ⚙️ How to Use
 
