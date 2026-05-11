@@ -1,4 +1,39 @@
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Python build
+build/
+dist/
+*.egg-info/
+
+# Temporary
+temp/
+tmp/
+
+# ComfyUI cache
+*.cache
+
+# Output files
+output/
+input/
+
+# PyInstaller
+*.spec
