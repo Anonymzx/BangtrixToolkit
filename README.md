@@ -57,6 +57,19 @@ git clone https://github.com/Anonymzx/BangtrixTranslateUniversal.git
 
 ---
 
+## 📦 Installation via ComfyUI Manager
+
+1. Open **ComfyUI**
+2. Open **ComfyUI Manager**
+3. Click:
+   - `Custom Nodes Manager`
+4. Search:
+   ```bash
+   BangtrixTranslateUniversal
+Click:
+Install
+Restart ComfyUI
+
 ## ⚙️ How to Use
 
 1. Add the **BangtrixTranslateUniversal** node to your workflow.
