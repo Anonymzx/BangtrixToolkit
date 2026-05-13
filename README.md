@@ -7,7 +7,7 @@ Advanced Custom Node Toolkit for ComfyUI focused on:
 - Performance Utilities
 
 ---
-<details open>
+<details close>
 <summary>
 
 # 🌐 Bangtrix Translate Universal
