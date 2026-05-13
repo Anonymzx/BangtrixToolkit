@@ -124,6 +124,13 @@ Supports:
 | ultra | Maximum cleanup and artifact filtering |
 
 ---
+
+# Sample Workflows
+
+<img width="570" height="792" alt="image" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
+
+<img width="1800" height="1121" alt="image" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
+
 </details>
 
 # 📦 Installation
