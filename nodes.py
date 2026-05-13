@@ -191,5 +191,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "BangtrixTranslateUniversal": "Bangtrix Translate Universal v5"
+    "BangtrixTranslateUniversal": "Bangtrix Translate Universal 🌐"
 }
