@@ -1,141 +1,285 @@
-# BangtrixTranslateUniversal
+# BangtrixToolkit
 
-ComfyUI custom node repository.
+Advanced Custom Node Toolkit for ComfyUI focused on:
+- AI Prompt Translation
+- AMD ROCm Utilities
+- Workflow Enhancements
+- Performance Utilities
 
-**BangtrixTranslateUniversal** is a **Custom Node for ComfyUI** that translates text from one language to another in real-time. This node is designed for AI generative workflows in ComfyUI that require multi-language prompts.
+---
+<details open>
+<summary>
+
+# 🌐 Bangtrix Translate Universal
+
+</summary>
+
+Bangtrix Translate Universal is an advanced translation node for ComfyUI that automatically translates prompts into English and directly outputs them into CLIP conditioning.
+
+Designed for:
+- Stable Diffusion
+- Flux
+- SDXL
+- Pony
+- Anime Models
+- Realistic Models
+- Any CLIP-based workflow
 
 ---
 
-## 🌟 Key Features
-- Automatic translation of positive and negative prompts.
-- Supports multiple popular languages.
-- Quality and style presets to enhance prompts.
-- Auto-negative presets to reduce undesirable outputs.
-- Translation caching for faster processing.
-- Option to display original and translated text.
+# ✨ Features
+
+## 🌍 Translation
+- Automatic Google Translate integration
+- Multi-language support
+- Real-time prompt translation
+- Offline-safe fallback
 
 ---
 
-## 📝 Supported Languages
-
-| Code   | Language |
-|--------|---------|
-| auto   | Auto-detect |
-| id     | Indonesian |
-| en     | English |
-| ja     | Japanese |
-| ko     | Korean |
-| zh-CN  | Simplified Chinese |
-| zh-TW  | Traditional Chinese |
-| fr     | French |
-| de     | German |
-| es     | Spanish |
-| pt     | Portuguese |
-| ru     | Russian |
-| it     | Italian |
-| ar     | Arabic |
-| tr     | Turkish |
-| hi     | Hindi |
-| th     | Thai |
-| vi     | Vietnamese |
+## 🧠 Prompt Enhancement
+- Quality presets
+- Style presets
+- Prompt cleaning
+- Prompt enhancement system
 
 ---
 
-## 💻 Installation
+## ❌ Auto Negative
+Automatically generates optimized negative prompts.
 
-1. Go to the `custom_nodes` folder in ComfyUI:
+Supports:
+- anatomy fixes
+- blur reduction
+- watermark filtering
+- artifact reduction
+- style-based negatives
+
+---
+
+## ⚡ Performance
+- Translation cache system
+- Fast repeated translation
+- Lightweight architecture
+- Universal model compatibility
+
+---
+
+# 📝 Supported Languages
+
+| Code | Language |
+|------|------|
+| auto | Auto Detect |
+| id | Indonesian |
+| en | English |
+| ja | Japanese |
+| ko | Korean |
+| zh-CN | Simplified Chinese |
+| zh-TW | Traditional Chinese |
+| fr | French |
+| de | German |
+| es | Spanish |
+| pt | Portuguese |
+| ru | Russian |
+| it | Italian |
+| ar | Arabic |
+| tr | Turkish |
+| hi | Hindi |
+| th | Thai |
+| vi | Vietnamese |
+
+---
+
+# 🎨 Quality Presets
+
+| Preset | Description |
+|------|------|
+| normal | Standard quality enhancement |
+| high | Better details and sharpness |
+| ultra | Maximum quality enhancement |
+
+---
+
+# 🎭 Style Presets
+
+| Style | Description |
+|------|------|
+| none | No style enhancement |
+| anime | Anime style optimization |
+| realistic | Realistic photography enhancement |
+| cinematic | Cinematic lighting and shadows |
+| photography | Professional photography style |
+| product | Product photography optimization |
+| fantasy | Fantasy art enhancement |
+| portrait | Portrait optimization |
+
+---
+
+# ❌ Auto Negative Strength
+
+| Strength | Description |
+|------|------|
+| normal | Basic negative prompt |
+| strong | Improved artifact reduction |
+| ultra | Maximum cleanup and artifact filtering |
+
+---
+</details>
+
+# 📦 Installation
+
+## Manual Installation
+
+Go to your ComfyUI custom_nodes folder:
 
 ```bash
-cd "F:\Program Files\ComfyUI\custom_nodes"
+cd "ComfyUI/custom_nodes"
 ```
-2. Clone the repository or copy the folder:
+
+Clone repository:
 
 ```bash
-git clone https://github.com/Anonymzx/BangtrixTranslateUniversal.git
+git clone https://github.com/Anonymzx/BangtrixToolkit.git
 ```
-3. Restart ComfyUI. The node will appear automatically in the Custom Nodes panel.
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Restart ComfyUI.
 
 ---
 
-## 📦 Installation via ComfyUI Manager
+# 🧩 Installation via ComfyUI Manager
 
-1. Open **ComfyUI**
-2. Open **ComfyUI Manager**
-3. Click:
-   - `Custom Nodes Manager`
+1. Open ComfyUI
+2. Open ComfyUI Manager
+3. Open:
+   - Custom Nodes Manager
 4. Search:
-   ```bash
-   BangtrixTranslateUniversal
+   - BangtrixToolkit
 5. Click:
-   - `Install`
-   - `Restart ComfyUI`
-
-## ⚙️ How to Use
-
-1. Add the **BangtrixTranslateUniversal** node to your workflow.
-2. Enter **positive** and **negative prompts**.
-3. Select **source** and **target languages**.
-4. Choose **quality preset** (`normal`, `high`, `ultra`) and **style preset** (`anime`, `realistic`, `cinematic`, etc.).
-5. Enable the following options as needed:
-   - **Enable Translate** → translate the text
-   - **Enable Enhance** → add quality/style enhancements
-   - **Enable Clean** → remove newlines
-   - **Enable Cache** → use cached translations for speed
-   - **Enable Auto Negative** → automatically apply negative prompt presets
-6. Run the workflow → outputs:
-   - **positive_conditioning**
-   - **negative_conditioning**
-   - **positive_prompt_final**
-   - **negative_prompt_final**
+   - Install
+6. Restart ComfyUI
 
 ---
 
-## 🔧 Presets
+# ⚙️ Node Inputs
 
-### Quality Preset
-- `normal`
-- `high`
-- `ultra`
-
-### Style Preset
-- `none`
-- `anime`
-- `realistic`
-- `cinematic`
-- `photography`
-- `product`
-- `fantasy`
-- `portrait`
-
-### Auto Negative Strength
-- `normal`
-- `strong`
-- `ultra`
+| Input | Description |
+|------|------|
+| positive_prompt | Positive prompt |
+| negative_prompt | Negative prompt |
+| source_language | Original language |
+| target_language | Translation target language |
+| quality_preset | Quality enhancement |
+| style_preset | Style enhancement |
+| enable_translate | Enable translation |
+| enable_enhance | Enable prompt enhancement |
+| enable_clean | Clean newline formatting |
+| enable_cache | Enable translation cache |
+| enable_auto_negative | Enable automatic negative prompts |
+| auto_negative_strength | Auto negative strength |
+| show_original | Show original + translated text |
 
 ---
 
-## ⚡ Tips
-- Use **show_original** to see both original and translated text.
-- Enable **enable_cache** to avoid repeated translation requests.
-- Ideal for multi-language workflows and AI generative prompts.
+# 📤 Outputs
+
+| Output | Description |
+|------|------|
+| positive_conditioning | CLIP positive conditioning |
+| negative_conditioning | CLIP negative conditioning |
+| positive_prompt_final | Final translated positive prompt |
+| negative_prompt_final | Final translated negative prompt |
 
 ---
 
-# Sample
+# 🔥 Workflow Example
+
+## Indonesian Input
+
+```text
+wanita cantik memakai kimono di malam hari
+```
+
+## Final English Prompt
+
+```text
+beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed
+```
+
+---
+
+# 💡 Tips
+
+- Use `show_original` to debug translations
+- Enable `enable_cache` for faster workflows
+- Use `ultra` quality for SDXL and Flux
+- Use `anime` preset for anime models
+- Use `realistic` or `photography` for realism models
+
+---
+
+# 🖼️ Preview
+
+## Node Preview
 
 <img width="570" height="792" alt="image" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
 
+---
+
+## Workflow Preview
+
 <img width="1800" height="1121" alt="image" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
 
+---
 
+# 📁 Project Structure
 
+```text
+BangtrixToolkit/
+│
+├── nodes/
+│   └── translate_universal.py
+│
+├── utils/
+├── web/
+├── workflows/
+│
+├── __init__.py
+├── requirements.txt
+├── README.md
+├── LICENSE
+└── .gitignore
+```
 
+---
 
+# 🚀 Roadmap
 
+## v1
+- Bangtrix Translate Universal
 
+## v2
+- AMD Monitor
+- ROCm Utilities
 
+## v3
+- Smart Cache
+- Performance Optimizer
+- Benchmark Tools
 
+---
 
+# ❤️ Credits
 
+Created by:
+- Anonymzx
 
-
+Powered by:
+- ComfyUI
+- Google Translate API
+- Python
