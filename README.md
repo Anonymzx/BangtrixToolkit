@@ -244,27 +244,6 @@ beautiful woman wearing kimono at night, cinematic lighting, high quality, detai
 
 ---
 
-# 📁 Project Structure
-
-```text
-BangtrixToolkit/
-│
-├── nodes/
-│   └── translate_universal.py
-│
-├── utils/
-├── web/
-├── workflows/
-│
-├── __init__.py
-├── requirements.txt
-├── README.md
-├── LICENSE
-└── .gitignore
-```
-
----
-
 # 🚀 Roadmap
 
 ## v1
@@ -285,8 +264,3 @@ BangtrixToolkit/
 
 Created by:
 - Anonymzx
-
-Powered by:
-- ComfyUI
-- Google Translate API
-- Python
