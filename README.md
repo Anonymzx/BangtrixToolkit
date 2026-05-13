@@ -125,11 +125,70 @@ Supports:
 
 ---
 
-# Sample Workflows
+---
+
+# ⚙️ Node Inputs
+
+| Input | Description |
+|------|------|
+| positive_prompt | Positive prompt |
+| negative_prompt | Negative prompt |
+| source_language | Original language |
+| target_language | Translation target language |
+| quality_preset | Quality enhancement |
+| style_preset | Style enhancement |
+| enable_translate | Enable translation |
+| enable_enhance | Enable prompt enhancement |
+| enable_clean | Clean newline formatting |
+| enable_cache | Enable translation cache |
+| enable_auto_negative | Enable automatic negative prompts |
+| auto_negative_strength | Auto negative strength |
+| show_original | Show original + translated text |
+
+---
+
+# 📤 Outputs
+
+| Output | Description |
+|------|------|
+| positive_conditioning | CLIP positive conditioning |
+| negative_conditioning | CLIP negative conditioning |
+| positive_prompt_final | Final translated positive prompt |
+| negative_prompt_final | Final translated negative prompt |
+
+---
+
+# 🔥 Workflow Example
 
 <img width="570" height="792" alt="image" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
 
 <img width="1800" height="1121" alt="image" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
+
+---
+
+## Indonesian Input
+
+```text
+wanita cantik memakai kimono di malam hari
+```
+
+## Final English Prompt
+
+```text
+beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed
+```
+
+---
+
+# 💡 Tips
+
+- Use `show_original` to debug translations
+- Enable `enable_cache` for faster workflows
+- Use `ultra` quality for SDXL and Flux
+- Use `anime` preset for anime models
+- Use `realistic` or `photography` for realism models
+
+---
 
 </details>
 
@@ -170,77 +229,6 @@ Restart ComfyUI.
 5. Click:
    - Install
 6. Restart ComfyUI
-
----
-
-# ⚙️ Node Inputs
-
-| Input | Description |
-|------|------|
-| positive_prompt | Positive prompt |
-| negative_prompt | Negative prompt |
-| source_language | Original language |
-| target_language | Translation target language |
-| quality_preset | Quality enhancement |
-| style_preset | Style enhancement |
-| enable_translate | Enable translation |
-| enable_enhance | Enable prompt enhancement |
-| enable_clean | Clean newline formatting |
-| enable_cache | Enable translation cache |
-| enable_auto_negative | Enable automatic negative prompts |
-| auto_negative_strength | Auto negative strength |
-| show_original | Show original + translated text |
-
----
-
-# 📤 Outputs
-
-| Output | Description |
-|------|------|
-| positive_conditioning | CLIP positive conditioning |
-| negative_conditioning | CLIP negative conditioning |
-| positive_prompt_final | Final translated positive prompt |
-| negative_prompt_final | Final translated negative prompt |
-
----
-
-# 🔥 Workflow Example
-
-## Indonesian Input
-
-```text
-wanita cantik memakai kimono di malam hari
-```
-
-## Final English Prompt
-
-```text
-beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed
-```
-
----
-
-# 💡 Tips
-
-- Use `show_original` to debug translations
-- Enable `enable_cache` for faster workflows
-- Use `ultra` quality for SDXL and Flux
-- Use `anime` preset for anime models
-- Use `realistic` or `photography` for realism models
-
----
-
-# 🖼️ Preview
-
-## Node Preview
-
-<img width="570" height="792" alt="image" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
-
----
-
-## Workflow Preview
-
-<img width="1800" height="1121" alt="image" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
 
 ---
 
