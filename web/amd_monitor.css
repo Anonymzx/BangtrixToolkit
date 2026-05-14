@@ -1,0 +1,29 @@
+#bangtrix-amd-monitor {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 260px;
+
+    background: rgba(20,20,20,0.85);
+    backdrop-filter: blur(8px);
+
+    border-radius: 12px;
+    padding: 14px;
+
+    color: white;
+    z-index: 99999;
+
+    font-family: Arial;
+    font-size: 13px;
+
+    box-shadow: 0 0 15px rgba(0,0,0,0.4);
+}
+
+#bangtrix-amd-monitor h3 {
+    margin: 0 0 10px 0;
+    font-size: 15px;
+}
+
+.bangtrix-item {
+    margin-bottom: 8px;
+}
