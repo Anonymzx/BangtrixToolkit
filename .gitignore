@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual environment
 .venv/
@@ -18,8 +19,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Python build
+# Build
 build/
 dist/
 *.egg-info/
@@ -28,12 +31,18 @@ dist/
 temp/
 tmp/
 
-# ComfyUI cache
+# ComfyUI
 *.cache
-
-# Output files
 output/
 input/
 
 # PyInstaller
 *.spec
+
+# Bundled LibreHardwareMonitor
+monitor/libre_hardware_monitor/
+monitor/*.zip
+monitor/*.exe
+
+# Test files we don't want in repo
+_detect_adlx.py

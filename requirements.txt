@@ -1,15 +1,47 @@
-# HTTP & WebSocket Server (Required for AMD Monitor)
+# ============================================
+# BANGTRIXTOOLKIT - Dependencies
+# ============================================
+# Install with: pip install -r requirements.txt
+
+# ============================================
+# 📡 WebSocket & HTTP Server (WAJIB)
+# ============================================
+# Diperlukan untuk AMD Monitor WebSocket + streaming
 aiohttp>=3.8.0
 async-timeout>=4.0.0
 
-# HTTP Requests (Optional - for translate_universal)
+# ============================================
+# 🌐 HTTP Client (Opsional - translate node)
+# ============================================
+# Google Translate API + GitHub API (LHM download)
+# NOTE: Kalau tidak diinstall, Python urllib akan dipakai
 requests>=2.31.0
 
-# System Monitoring
+# ============================================
+# 🖥️ System Monitoring (DIREKOMENDASIKAN)
+# ============================================
+# Diperlukan untuk:
+#   - Process Monitor (deteksi generasi ComfyUI)
+#   - VRAM/memory fallback
+#   - CPU utilization tracking
 psutil>=5.9.0
 
-# AMD GPU Monitoring - Linux (ROCm)
+# ============================================
+# 🐧 AMD GPU - Linux (ROCm)
+# ============================================
+# Hanya untuk Linux dengan driver ROCm terinstall
 pyrsmi>=0.2.0; sys_platform == "linux"
 
-# AMD GPU Monitoring - Windows (ADL)
+# ============================================
+# 🪟 AMD GPU - Windows (Legacy ADL)
+# ============================================
+# Opsional: untuk GPU temperature/fan via ADL
+# NOTE: Sebagian driver AMD terbaru mungkin tidak kompatibel
 pyadl>=1.0.0; sys_platform == "win32"
+
+# ============================================
+# 🌡️ LibreHardwareMonitor (Windows)
+# ============================================
+# TIDAK PERLU install! Auto-download dari GitHub saat runtime.
+# Baca: Temperature, Fan, Clock, Power, Load via WMI.
+# Minimal: Python 3.8+ (built-in: subprocess, wmi, powershell)
