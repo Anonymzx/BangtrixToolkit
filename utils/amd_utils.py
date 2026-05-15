@@ -183,7 +183,8 @@ class AMDMonitor:
                 "Select-Object -ExpandProperty Name"
             ]
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=5
+                cmd, capture_output=True, text=True, timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result.returncode == 0 and result.stdout.strip():
                 names = [n.strip() for n in result.stdout.strip().split('\n') if n.strip()]
@@ -198,7 +199,8 @@ class AMDMonitor:
                 "Get-WmiObject Win32_VideoController | Select-Object -ExpandProperty Name"
             ]
             result2 = subprocess.run(
-                cmd2, capture_output=True, text=True, timeout=5
+                cmd2, capture_output=True, text=True, timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result2.returncode == 0 and result2.stdout.strip():
                 names = [n.strip() for n in result2.stdout.strip().split('\n') if n.strip()]
@@ -328,7 +330,8 @@ class AMDMonitor:
             )
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", ps_cmd],
-                capture_output=True, text=True, timeout=3
+                capture_output=True, text=True, timeout=3,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result.returncode == 0 and result.stdout.strip():
                 val = float(result.stdout.strip())
@@ -344,7 +347,8 @@ class AMDMonitor:
             )
             result_temp = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", temp_cmd],
-                capture_output=True, text=True, timeout=3
+                capture_output=True, text=True, timeout=3,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result_temp.returncode == 0 and result_temp.stdout.strip():
                 temp = float(result_temp.stdout.strip())
@@ -365,7 +369,8 @@ class AMDMonitor:
             result_vram = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
                  "(Get-WmiObject Win32_VideoController | Select-Object -First 1).AdapterRAM"],
-                capture_output=True, text=True, timeout=3
+                capture_output=True, text=True, timeout=3,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result_vram.returncode == 0 and result_vram.stdout.strip():
                 mem_total = int(result_vram.stdout.strip())

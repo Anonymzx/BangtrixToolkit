@@ -35,7 +35,6 @@ __all__ = [
 
 async def on_app_started(app):
     """Register WebSocket endpoint for AMD Monitor overlay"""
-    import asyncio
     from aiohttp import web
     from .server.amd_server import get_amd_server
 
@@ -54,15 +53,31 @@ async def on_app_started(app):
         pass  # Route already registered
 
     if not amd_server.running:
-        amd_server.start_streaming(asyncio.get_event_loop())
+        amd_server.start_streaming()
         print("✅ BANGTRIXTOOLKIT: AMD Monitor overlay streaming started")
 
 
-# Register with ComfyUI
+# Register with ComfyUI — use lazy approach to avoid timing issues
 try:
     from server import PromptServer
-    prompt_server = PromptServer.instance
-    prompt_server.app.on_startup.append(on_app_started)
-    print("✅ BANGTRIXTOOLKIT: Server extension registered (AMD Monitor overlay)")
+    if PromptServer.instance:
+        prompt_server = PromptServer.instance
+        prompt_server.app.on_startup.append(on_app_started)
+        print("✅ BANGTRIXTOOLKIT: Server extension registered (AMD Monitor overlay)")
+    else:
+        # PromptServer not yet initialized — store for later
+        _pending_startup_hooks = getattr(PromptServer, '_pending_startup_hooks', [])
+        _pending_startup_hooks.append(on_app_started)
+        PromptServer._pending_startup_hooks = _pending_startup_hooks
+        
+        # Monkey-patch PromptServer.__init__ to register after instance is created
+        _original_init = PromptServer.__init__
+        def _patched_init(self, *args, **kwargs):
+            _original_init(self, *args, **kwargs)
+            for hook in getattr(PromptServer, '_pending_startup_hooks', []):
+                self.app.on_startup.append(hook)
+            PromptServer._pending_startup_hooks = []
+        PromptServer.__init__ = _patched_init
+        print("✅ BANGTRIXTOOLKIT: Server extension queued (lazy registration)")
 except Exception as e:
     print(f"⚠️ BANGTRIXTOOLKIT: Server extension skipped: {e}")
