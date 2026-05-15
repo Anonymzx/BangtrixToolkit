@@ -1,1 +1,15 @@
-requests
+# HTTP & WebSocket Server (Required for AMD Monitor)
+aiohttp>=3.8.0
+async-timeout>=4.0.0
+
+# HTTP Requests (Optional - for translate_universal)
+requests>=2.31.0
+
+# System Monitoring
+psutil>=5.9.0
+
+# AMD GPU Monitoring - Linux (ROCm)
+pyrsmi>=0.2.0; sys_platform == "linux"
+
+# AMD GPU Monitoring - Windows (ADL)
+pyadl>=1.0.0; sys_platform == "win32"
