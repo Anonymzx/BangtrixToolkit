@@ -20,7 +20,7 @@ class AMDMonitorServer:
         self.monitor = None  # Lazy load
         self.clients: Set = set()
         self.running = False
-        self.update_interval = 1.0  # seconds — real-time
+        self.update_interval = 0.5  # seconds — real-time 500ms
         self._stream_task = None
 
         # Process monitor
@@ -243,15 +243,14 @@ class AMDMonitorServer:
         finally:
             logger.info("AMD Monitor: Stream data loop ended")
 
-    def start_streaming(self, loop=None):
+    def start_streaming(self):
         if self.running:
             return self._stream_task
 
         self.running = True
         logger.info("AMD Monitor: Starting data stream")
 
-        loop = loop or asyncio.get_event_loop()
-        self._stream_task = asyncio.ensure_future(self.stream_data(), loop=loop)
+        self._stream_task = asyncio.ensure_future(self.stream_data())
         return self._stream_task
 
     def stop_streaming(self):

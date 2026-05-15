@@ -1,7 +1,7 @@
 /**
- * BANGTRIXTOOLKIT - AMD Monitor Overlay v3.2
+ * BANGTRIXTOOLKIT - AMD Monitor Overlay v3.5
  * Real-time AMD GPU monitoring overlay for ComfyUI
- * Features: GPU name, sparkline, generation stats, settings, multi-GPU
+ * Features: Real-time 500ms updates, smooth CSS transitions, live VRAM
  */
 
 (function () {
@@ -28,13 +28,15 @@
     var historyData = [];
 
     var savedConfig = {};
+    var animationFrame = null;
+    var lastUpdate = 0;
 
     // ===== UTILITY =====
     function $(id) { return document.getElementById(id); }
 
     // ===== INIT =====
     function init() {
-        console.log('[AMD Monitor] Initializing v3.2...');
+        console.log('[AMD Monitor] Initializing v3.5 Real-Time...');
         loadConfig();
         createWidget();
         applyConfigToWidget();
@@ -72,8 +74,8 @@
                     '<div class="amd-stat"><span class="amd-label">Temp</span><span class="amd-value" id="amd-temp">N/A</span><div class="amd-bar"><div class="amd-fill amd-temp" id="amd-temp-bar"></div></div></div>' +
                     '<div class="amd-stat"><span class="amd-label">Fan</span><span class="amd-value" id="amd-fan">N/A</span><div class="amd-bar"><div class="amd-fill" id="amd-fan-bar"></div></div></div>' +
                 '</div>' +
-                '<div class="amd-sparkline-container" id="amd-sparkline-container" style="display:none;">' +
-                    '<div class="amd-label-small">GPU Load History</div>' +
+                '<div class="amd-sparkline-container" id="amd-sparkline-container">' +
+                    '<div class="amd-label-small">GPU Load History (30s)</div>' +
                     '<canvas class="amd-sparkline" id="amd-sparkline" width="232" height="40"></canvas>' +
                 '</div>' +
                 '<div class="amd-process" id="amd-process">' +
@@ -84,7 +86,7 @@
                     '<div class="amd-process-body">' +
                         '<div class="amd-stat-row"><span class="amd-label-xs">Duration</span><span class="amd-value-sm" id="amd-gen-duration">--</span></div>' +
                         '<div class="amd-stat-row"><span class="amd-label-xs">RAM Peak</span><span class="amd-value-sm" id="amd-gen-ram-peak">--</span></div>' +
-                        '<div class="amd-stat-row"><span class="amd-label-xs">RAM Delta</span><span class="amd-value-sm" id="amd-gen-ram-delta">--</span></div>' +
+                        '<div class="amd-stat-row"><span class="amd-label-xs">VRAM Used</span><span class="amd-value-sm" id="amd-gen-vram-used">--</span></div>' +
                         '<div class="amd-stat-row"><span class="amd-label-xs">CPU Peak</span><span class="amd-value-sm" id="amd-gen-cpu-peak">--</span></div>' +
                     '</div>' +
                 '</div>' +
@@ -92,7 +94,7 @@
                     '<span class="amd-alert-icon">⚠️</span><span class="amd-alert-text" id="amd-alert-text">VRAM Alert</span>' +
                 '</div>' +
                 '<div class="amd-settings" id="amd-settings" style="display:none;">' +
-                    '<div class="amd-settings-row"><span class="amd-label-small">Interval</span><select class="amd-select" id="amd-settings-interval"><option value="1">1s</option><option value="5" selected>5s</option><option value="10">10s</option><option value="30">30s</option></select></div>' +
+                    '<div class="amd-settings-row"><span class="amd-label-small">Interval</span><select class="amd-select" id="amd-settings-interval"><option value="0.5">0.5s</option><option value="1" selected>1s</option><option value="5">5s</option><option value="10">10s</option></select></div>' +
                     '<div class="amd-settings-row"><span class="amd-label-small">VRAM Alert %</span><input type="number" class="amd-input" id="amd-settings-vram-threshold" value="90" min="50" max="100" /></div>' +
                     '<div class="amd-settings-row"><span class="amd-label-small">Temp Unit</span><select class="amd-select" id="amd-settings-temp-unit"><option value="celsius" selected>°C</option><option value="fahrenheit">°F</option></select></div>' +
                     '<div class="amd-settings-row"><span class="amd-label-small">Sparkline</span><label class="amd-toggle"><input type="checkbox" id="amd-settings-sparkline" checked /><span class="amd-toggle-slider"></span></label></div>' +
@@ -114,8 +116,8 @@
             'background:linear-gradient(135deg,rgba(196,48,43,0.2)0%,rgba(139,32,29,0.1)100%);' +
             'border-radius:10px 10px 0 0;cursor:move;border-bottom:1px solid rgba(255,255,255,0.05)}' +
             '.amd-title{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;color:#fff}' +
-            '.amd-icon{font-size:14px;animation:pulse 2s infinite}' +
-            '@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}' +
+            '.amd-icon{font-size:14px;animation:pulse 1s infinite}' +
+            '@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}' +
             '.amd-controls{display:flex;gap:4px}' +
             '.amd-btn{background:rgba(255,255,255,0.1);border:none;color:#ccc;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:12px}' +
             '.amd-btn:hover{background:rgba(255,255,255,0.2);color:#fff}' +
@@ -127,12 +129,13 @@
             '.amd-stat{display:flex;flex-direction:column;gap:2px}' +
             '.amd-label{color:#888;font-size:10px;text-transform:uppercase}' +
             '.amd-label-small{color:#888;font-size:10px}' +
-            '.amd-value{font-weight:600;font-size:13px;color:#00e676}' +
+            '.amd-value{font-weight:600;font-size:13px;color:#00e676;transition:color 0.3s ease}' +
             '.amd-value.na{color:#666}' +
             '.amd-value.warning{color:#ffaa00}' +
             '.amd-value.critical{color:#ff4444}' +
             '.amd-bar{height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-top:2px}' +
-            '.amd-fill{height:100%;border-radius:2px;transition:width 0.3s ease;width:0%;background:linear-gradient(90deg,#00e676,#00c853)}' +
+            '.amd-fill{height:100%;border-radius:2px;width:0%;background:linear-gradient(90deg,#00e676,#00c853);' +
+            'transition:width 0.4s cubic-bezier(0.4,0,0.2,1)}' +
             '.amd-fill.amd-temp{background:linear-gradient(90deg,#00e676,#ffaa00,#ff4444)}' +
             '.amd-sparkline-container{margin-top:8px}' +
             '.amd-sparkline{width:100%;height:40px;border-radius:4px;background:rgba(0,0,0,0.3)}' +
@@ -162,6 +165,8 @@
             '.amd-status.connected{color:#00e676}' +
             '.amd-status.disconnected{color:#ff4444}' +
             '.amd-status.warning{color:#ffaa00}' +
+            '.amd-status.live{color:#00e676;animation:livePulse 1.5s infinite}' +
+            '@keyframes livePulse{0%,100%{color:#00e676}50%{color:#00e67688}}' +
             '.amd-method{color:#888;font-family:monospace;font-size:9px}';
         document.head.appendChild(style);
 
@@ -284,11 +289,11 @@
             if (btn) btn.textContent = isMinimized ? '+' : '−';
         }
         if (c.visible !== undefined) { isVisible = c.visible; widget.classList.toggle('hidden', !isVisible); }
-        var sel = $('amd-settings-interval'); if (sel) sel.value = String(c.updateInterval || 5);
+        var sel = $('amd-settings-interval'); if (sel) sel.value = String(c.updateInterval || 1);
         var inp = $('amd-settings-vram-threshold'); if (inp) inp.value = c.vramThreshold || 90;
         var sel2 = $('amd-settings-temp-unit'); if (sel2) sel2.value = c.tempUnit || 'celsius';
         var chk = $('amd-settings-sparkline');
-        if (chk) { chk.checked = c.showSparkline !== false; var cont = $('amd-sparkline-container'); if (cont) cont.style.display = chk.checked ? 'block' : 'none'; }
+        if (chk) { chk.checked = c.showSparkline !== false; var cont = $('amd-sparkline-container'); if (cont) cont.style.display = 'block'; }
     }
 
     function saveConfig() {
@@ -296,7 +301,7 @@
             var config = {
                 position: { top: widget.style.top, left: widget.style.left },
                 minimized: isMinimized, visible: isVisible,
-                updateInterval: parseFloat($('amd-settings-interval')?.value) || 5,
+                updateInterval: parseFloat($('amd-settings-interval')?.value) || 1,
                 vramThreshold: parseInt($('amd-settings-vram-threshold')?.value) || 90,
                 tempUnit: $('amd-settings-temp-unit')?.value || 'celsius',
                 showSparkline: $('amd-settings-sparkline')?.checked !== false
@@ -315,14 +320,17 @@
         updateStatus('Connecting...', 'warning');
         ws = new WebSocket(url);
         ws.onopen = function() {
-            console.log('[AMD Monitor] Connected');
-            updateStatus('Connected', 'connected');
-            updateMethod('Live');
+            console.log('[AMD Monitor] Connected — Real-Time');
+            updateStatus('● LIVE', 'live');
+            updateMethod('Real-Time 500ms');
             reconnectAttempts = 0;
             if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         };
         ws.onmessage = function(event) {
-            try { var data = JSON.parse(event.data); if (data.type === 'amd_stats') handleStatsData(data); } catch(e) {}
+            try {
+                var data = JSON.parse(event.data);
+                if (data.type === 'amd_stats') handleStatsData(data);
+            } catch(e) {}
         };
         ws.onclose = function() {
             updateStatus('Disconnected', 'disconnected');
@@ -342,7 +350,14 @@
     function handleStatsData(data) {
         gpuDataMap[data.gpu_id] = data;
         if (data.gpu_count && gpuCount !== data.gpu_count) { gpuCount = data.gpu_count; updateGpuSelector(); }
-        if (data.gpu_id === selectedGpuId) refreshDisplay(selectedGpuId);
+        if (data.gpu_id === selectedGpuId) {
+            // Use requestAnimationFrame for smooth UI updates
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            animationFrame = requestAnimationFrame(function() {
+                refreshDisplay(selectedGpuId);
+                animationFrame = null;
+            });
+        }
     }
 
     function refreshDisplay(gpuId) {
@@ -365,14 +380,20 @@
         setStat('amd-gpu-util', gpuUtil.toFixed(1) + '%', gpuUtil);
         setBar('amd-gpu-bar', gpuUtil);
 
-        // VRAM
+        // VRAM — REAL-TIME used/total
         var vramUsedMB = data.vram_used_mb || 0;
         var vramTotalMB = data.vram_total_mb || 0;
         var vramPct = data.vram_usage_pct || (vramTotalMB > 0 ? (vramUsedMB / vramTotalMB * 100) : 0);
-        if (vramTotalMB > 0) {
-            setStat('amd-vram', (vramUsedMB / 1024).toFixed(1) + ' / ' + (vramTotalMB / 1024).toFixed(1) + ' GB', vramPct);
+        if (vramTotalMB > 0 && vramUsedMB > 0) {
+            setStat('amd-vram', (vramUsedMB / 1024).toFixed(2) + ' / ' + (vramTotalMB / 1024).toFixed(1) + ' GB', vramPct);
             setBar('amd-vram-bar', vramPct);
-        } else { setStat('amd-vram', 'N/A'); setBar('amd-vram-bar', 0); }
+        } else if (vramTotalMB > 0) {
+            setStat('amd-vram', '0 / ' + (vramTotalMB / 1024).toFixed(1) + ' GB', 0);
+            setBar('amd-vram-bar', 0);
+        } else {
+            setStat('amd-vram', 'N/A');
+            setBar('amd-vram-bar', 0);
+        }
 
         // Temperature
         var temp = data.temperature || 0;
@@ -391,14 +412,14 @@
         else { setStat('amd-fan', 'N/A'); setBar('amd-fan-bar', 0); }
 
         // Status
-        var methodInfo = data.method || 'unknown';
+        var methodInfo = 'Real-Time';
         if (data.core_clock_mhz > 0) methodInfo += ' | ' + data.core_clock_mhz + 'MHz';
         if (data.power_draw_watts > 0) methodInfo += ' | ' + data.power_draw_watts + 'W';
         updateMethod(methodInfo);
 
         var statusText = data.gpu_name || ('GPU ' + gpuId);
         if (gpuCount > 1) statusText += ' (' + (gpuId + 1) + '/' + gpuCount + ')';
-        updateStatus(statusText, 'connected');
+        updateStatus('● LIVE', 'live');
 
         // Sparkline
         if (data.history && data.history.length > 0) {
@@ -422,7 +443,7 @@
         var statusEl = $('amd-process-status');
         var durEl = $('amd-gen-duration');
         var ramPeakEl = $('amd-gen-ram-peak');
-        var ramDeltaEl = $('amd-gen-ram-delta');
+        var vramUsedEl = $('amd-gen-vram-used');
         var cpuPeakEl = $('amd-gen-cpu-peak');
         if (!statusEl) return;
 
@@ -432,7 +453,7 @@
             statusEl.className = 'amd-process-status generating';
             if (durEl) durEl.textContent = gen.duration + 's';
             if (ramPeakEl) ramPeakEl.textContent = gen.ram_peak_mb + ' MB';
-            if (ramDeltaEl) ramDeltaEl.textContent = '+' + (gen.ram_peak_mb - gen.ram_start_mb) + ' MB';
+            if (vramUsedEl) vramUsedEl.textContent = gen.vram_peak_mb + ' MB';
             if (cpuPeakEl) cpuPeakEl.textContent = gen.cpu_peak + '%';
         } else if (process.last_generation) {
             var last = process.last_generation;
@@ -440,13 +461,13 @@
             statusEl.className = 'amd-process-status idle';
             if (durEl) durEl.textContent = last.duration + 's';
             if (ramPeakEl) ramPeakEl.textContent = last.ram_peak_mb + ' MB';
-            if (ramDeltaEl) ramDeltaEl.textContent = '+' + last.vram_delta_mb + ' MB';
+            if (vramUsedEl) vramUsedEl.textContent = '+' + last.vram_delta_mb + ' MB peak';
             if (cpuPeakEl) cpuPeakEl.textContent = last.cpu_peak + '%';
         } else {
             statusEl.textContent = '● idle';
             statusEl.className = 'amd-process-status idle';
             if (durEl) durEl.textContent = '--'; if (ramPeakEl) ramPeakEl.textContent = '--';
-            if (ramDeltaEl) ramDeltaEl.textContent = '--'; if (cpuPeakEl) cpuPeakEl.textContent = '--';
+            if (vramUsedEl) vramUsedEl.textContent = '--'; if (cpuPeakEl) cpuPeakEl.textContent = '--';
         }
     }
 
@@ -539,7 +560,13 @@
         var el = $('amd-status'); if (!el) return;
         el.textContent = message; el.className = 'amd-status ' + className;
         var icon = widget.querySelector('.amd-icon');
-        if (icon) icon.textContent = className === 'connected' ? '🟢' : className === 'warning' ? '🟡' : '🔴';
+        if (icon) icon.textContent = className === 'live' || className === 'connected' ? '🟢' : className === 'warning' ? '🟡' : '🔴';
+        // Pulse faster when live
+        if (className === 'live') {
+            icon.style.animation = 'pulse 0.8s infinite';
+        } else {
+            icon.style.animation = 'pulse 2s infinite';
+        }
     }
 
     function updateMethod(method) { var el = $('amd-method'); if (el) el.textContent = method || ''; }

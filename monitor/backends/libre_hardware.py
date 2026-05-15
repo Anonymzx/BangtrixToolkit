@@ -4,7 +4,7 @@ LibreHardwareMonitor Backend
 Integrates LibreHardwareMonitor (LHM) for full GPU telemetry.
 - Auto-detects if LHM is running via WMI
 - Auto-downloads LHM portable if not present
-- Does NOT auto-run (requires admin) — user runs installer once
+- Auto-launches LHM as Administrator (via PowerShell Start-Process -Verb RunAs)
 - Reads: Temperature, Fan Speed, GPU Load, VRAM, Clocks, Power
 """
 
@@ -29,6 +29,7 @@ class LibreHardwareBackend(MonitorBackend):
     def __init__(self):
         super().__init__()
         self._lhm_exe = None
+        self._auto_launched = False
 
     def initialize(self) -> bool:
         if platform.system() != "Windows":
@@ -42,15 +43,35 @@ class LibreHardwareBackend(MonitorBackend):
             self.gpu_names = ["AMD GPU (LHM)"]
             return True
 
-        # Download LHM if missing (user just needs to run it)
+        # Download LHM if missing
         self._ensure_downloaded()
 
-        # Check if exe exists (downloaded but not running)
+        # Try to auto-launch LHM as Administrator
         if self._lhm_exe and os.path.exists(self._lhm_exe):
-            logger.info(
-                "LHM Backend: downloaded but not running. "
-                "Run as Admin: 'monitor\\libre_hardware_monitor\\LibreHardwareMonitor.exe --wmi'"
-            )
+            if self._auto_launch_lhm():
+                # Wait a moment for WMI to register, then re-check
+                import time
+                time.sleep(2)
+                if self._detect_wmi_sensors():
+                    logger.info("LHM Backend: auto-launch succeeded via WMI")
+                    self.available = True
+                    self.gpu_count = 1
+                    self.gpu_names = ["AMD GPU (LHM)"]
+                    self._auto_launched = True
+                    return True
+                else:
+                    logger.info(
+                        "LHM Backend: downloaded but auto-launch failed. "
+                        "Try running manually as Admin:\n"
+                        f"  {self._lhm_exe} --wmi\n"
+                        "Or double-click the 'start_lhm.bat' file."
+                    )
+            else:
+                logger.info(
+                    "LHM Backend: downloaded but not running. "
+                    "Run as Admin:\n"
+                    f"  {self._lhm_exe} --wmi"
+                )
 
         return False
 
@@ -126,6 +147,59 @@ class LibreHardwareBackend(MonitorBackend):
             logger.warning(f"LHM download error: {e}")
             if os.path.exists(zip_path):
                 os.remove(zip_path)
+
+    def _auto_launch_lhm(self) -> bool:
+        """
+        Auto-launch LHM as Administrator via PowerShell Start-Process -Verb RunAs.
+        This will trigger a UAC prompt for the user to approve.
+        """
+        if not self._lhm_exe:
+            return False
+
+        logger.info("LHM: attempting auto-launch as Administrator...")
+
+        try:
+            # CMD-based approach: create a temporary VBS script to run as admin silently
+            vbs_script = (
+                "Set UAC = CreateObject(\"Shell.Application\")\n"
+                f"UAC.ShellExecute \"{self._lhm_exe}\", \"--wmi\", \"{os.path.dirname(self._lhm_exe)}\", \"runas\", 0\n"
+            )
+            vbs_path = os.path.join(os.path.dirname(self._lhm_exe), "_lhm_launch.vbs")
+            with open(vbs_path, 'w') as f:
+                f.write(vbs_script)
+
+            # Run the VBS script (no window)
+            subprocess.run(
+                ["wscript.exe", vbs_path],
+                capture_output=True, timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+
+            # Clean up VBS after launch
+            try:
+                os.remove(vbs_path)
+            except:
+                pass
+
+            logger.info("LHM: auto-launch command sent (UAC may prompt)")
+            return True
+
+        except Exception as e:
+            logger.warning(f"LHM auto-launch error: {e}")
+            return False
+
+    def close(self):
+        """Cleanup: kill LHM if we auto-launched it"""
+        if self._auto_launched:
+            try:
+                subprocess.run(
+                    ["taskkill", "/f", "/im", "LibreHardwareMonitor.exe"],
+                    capture_output=True, timeout=3,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                logger.info("LHM: stopped auto-launched instance")
+            except:
+                pass
 
     def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
         """Get GPU stats from LHM/OHM via WMI"""

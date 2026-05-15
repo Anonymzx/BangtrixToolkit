@@ -34,17 +34,18 @@ class GPUCounterMonitor:
             cmd = [
                 "powershell", "-NoProfile", "-Command",
                 "Get-WmiObject Win32_VideoController | "
-                "Where-Object { $_.AdapterRAM -gt 0 } | "
                 "Select-Object Name, AdapterRAM | ConvertTo-Json"
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode == 0 and result.stdout.strip():
                 data = json.loads(result.stdout.strip())
                 if isinstance(data, dict):
                     data = [data]
                 for gpu in data:
                     name = gpu.get('Name', 'Unknown GPU').strip()
-                    self.gpu_names.append(name)
+                    if name:
+                        self.gpu_names.append(name)
                 self.gpu_count = len(self.gpu_names)
                 if self.gpu_count > 0:
                     self.available = True
@@ -55,24 +56,44 @@ class GPUCounterMonitor:
 
     def get_gpu_utilization(self, gpu_id: int = 0) -> float:
         """Get GPU utilization % via performance counters"""
+        # Method 1: Query GPU engine utilization (sum of all 3D engines)
         try:
-            # Get average 3D engine usage
             ps_cmd = (
-                "Get-Counter '\\GPU Engine(*engtype_3D)\\*' -SampleInterval 0 -MaxSamples 1 "
-                "2>$null | Select-Object -ExpandProperty CounterSamples | "
-                "Measure-Object -Property CookedValue -Average | "
-                "Select-Object -ExpandProperty Average"
+                "Get-Counter '\\GPU Engine(*engtype_3D)\\*' -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty CounterSamples "
+                "| Measure-Object -Property CookedValue -Sum "
+                "| Select-Object -ExpandProperty Sum"
             )
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", ps_cmd],
-                capture_output=True, text=True, timeout=3
+                capture_output=True, text=True, timeout=3,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result.returncode == 0 and result.stdout.strip():
                 val = float(result.stdout.strip())
-                if val > 0:
-                    return val
+                return min(100.0, max(0.0, val / 100000.0))
         except Exception as e:
             logger.debug(f"GPU utilization error: {e}")
+
+        # Method 2: Try GPU Adapter utilization percentage directly
+        try:
+            ps_cmd = (
+                "Get-Counter '\\GPU Adapter(*)\\*' -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty CounterSamples "
+                "| Where-Object { $_.Path -match 'Utilization Percentage' } "
+                "| Select-Object -First 1 -ExpandProperty CookedValue"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=3,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                val = float(result.stdout.strip())
+                return min(100.0, max(0.0, val))
+        except:
+            pass
+
         return 0.0
 
     def _detect_hardware_monitors(self):
@@ -86,7 +107,8 @@ class GPUCounterMonitor:
                 "Get-WmiObject -Namespace 'root/LibreHardwareMonitor' -Class Sensor 2>$null | "
                 "Select-Object -First 1 | ConvertTo-Json"
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode == 0 and result.stdout.strip() and result.stdout.strip() != 'null':
                 monitors.append("LibreHardwareMonitor")
         except:
@@ -99,7 +121,8 @@ class GPUCounterMonitor:
                     "Get-WmiObject -Namespace 'root/OpenHardwareMonitor' -Class Sensor 2>$null | "
                     "Select-Object -First 1 | ConvertTo-Json"
                 ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
+                                        creationflags=subprocess.CREATE_NO_WINDOW)
                 if result.returncode == 0 and result.stdout.strip() and result.stdout.strip() != 'null':
                     monitors.append("OpenHardwareMonitor")
             except:
@@ -109,7 +132,6 @@ class GPUCounterMonitor:
         try:
             import ctypes
             try:
-                # Try to open the shared memory file
                 import ctypes.wintypes
                 handle = ctypes.windll.kernel32.OpenFileMappingW(
                     0x0001, False, "MSE_Afterburner_SharedMemory"
@@ -200,21 +222,56 @@ class GPUCounterMonitor:
         return 0
 
     def get_gpu_vram_mb(self, gpu_id: int = 0) -> dict:
-        """Get VRAM info from WMI"""
+        """
+        Get VRAM info from WMI.
+        Works for dedicated GPUs and AMD APU shared memory.
+        """
+        # Method 1: Registry query (dedicated + APU)
         try:
             cmd = [
                 "powershell", "-NoProfile", "-Command",
-                "(Get-WmiObject Win32_VideoController | Select-Object -First 1).AdapterRAM"
+                "$paths = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\"
+                "{4d36e968-e325-11ce-bfc1-08002be10318}\\*' -ErrorAction SilentlyContinue; "
+                "foreach ($p in $paths) { "
+                "  $uma = $p.GetValue('UMA_FB_SIZE'); "
+                "  if ($uma) { $uma * 1MB; break } "
+                "  $gpuMem = $p.GetValue('HardwareInformation.GpuMemorySize'); "
+                "  if ($gpuMem) { $gpuMem; break } "
+                "  $mem = $p.GetValue('HardwareInformation.qwMemorySize'); "
+                "  if ($mem) { $mem; break } "
+                "}"
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode == 0 and result.stdout.strip():
                 total_bytes = int(result.stdout.strip())
                 total_mb = total_bytes / (1024 * 1024)
-                # We can't get actual VRAM usage without ADLX/ADL
-                # Estimate via process memory if needed
-                return {'total_mb': total_mb, 'used_mb': 0, 'free_mb': total_mb}
+                if total_mb > 0:
+                    return {'total_mb': total_mb, 'used_mb': 0, 'free_mb': total_mb}
         except:
             pass
+
+        # Method 2: WMI AdapterRAM
+        try:
+            cmd = [
+                "powershell", "-NoProfile", "-Command",
+                "$gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1; "
+                "if ($gpu) { "
+                "  $total = $gpu.AdapterRAM; "
+                "  if (-not $total -or $total -eq 0) { $total = 512MB }; "
+                "  $total "
+                "}"
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
+            if result.returncode == 0 and result.stdout.strip():
+                total_bytes = int(result.stdout.strip())
+                total_mb = total_bytes / (1024 * 1024)
+                if total_mb > 0:
+                    return {'total_mb': total_mb, 'used_mb': 0, 'free_mb': total_mb}
+        except:
+            pass
+
         return {'total_mb': 0, 'used_mb': 0, 'free_mb': 0}
 
     def get_all_metrics(self, gpu_id: int = 0) -> dict:

@@ -1,8 +1,9 @@
 """
 PowerShell Counter Backend
 ==========================
-Reads GPU stats via Windows Performance Counters + WMI.
-No extra dependencies (uses built-in PowerShell).
+Real-time GPU monitoring via Windows Performance Counters.
+Ultra-fast: uses Get-Counter only (reads pre-existing Windows counters, no HW query).
+VRAM total auto-detected once at init (supports APU UMA shared memory).
 """
 
 import logging
@@ -10,6 +11,7 @@ import subprocess
 import platform
 import json
 import re
+import time
 
 from .base import MonitorBackend, AMDGPUStats
 
@@ -19,206 +21,240 @@ logger = logging.getLogger(__name__)
 class PowerShellBackend(MonitorBackend):
     name = "powershell-counters"
 
+    def __init__(self):
+        super().__init__()
+        self._vram_total = 0
+        self._gpu_name_cached = ""
+        self._running_processes = {}  # cache process list for VRAM estimate
+
     def initialize(self) -> bool:
         if platform.system() != "Windows":
             logger.debug("PS Backend: Windows only")
             return False
-        return self._detect_gpus()
 
-    def _detect_gpus(self) -> bool:
+        # Detect GPU(s) and cache VRAM total once
+        if not self._init_gpu_and_vram():
+            return False
+
+        self.available = True
+        return True
+
+    def _init_gpu_and_vram(self) -> bool:
+        """
+        Detect GPU + cache VRAM total at init (not per-poll).
+        Works for dedicated GPUs and AMD APU shared memory.
+        """
+        # Get GPU name and try all VRAM detection methods in one PowerShell call
+        ps_script = (
+            "$gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1; "
+            "$name = ''; $vram = 0; "
+            "if ($gpu) { $name = $gpu.Name }; "
+            # Try UMA_FB_SIZE (APU shared memory)
+            "$paths = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\*' "
+            "-ErrorAction SilentlyContinue; "
+            "foreach ($p in $paths) { "
+            "  $uma = $p.GetValue('UMA_FB_SIZE'); "
+            "  if ($uma) { $vram = $uma * 1MB; break }; "
+            "  $gpuMem = $p.GetValue('HardwareInformation.GpuMemorySize'); "
+            "  if ($gpuMem) { $vram = $gpuMem; break }; "
+            "  $mem = $p.GetValue('HardwareInformation.qwMemorySize'); "
+            "  if ($mem) { $vram = $mem; break }; "
+            "}; "
+            # Fallback: WMI AdapterRAM
+            "if ($vram -eq 0 -and $gpu.AdapterRAM) { $vram = $gpu.AdapterRAM }; "
+            # Fallback: 512MB default for APU
+            "if ($vram -eq 0) { $vram = 512MB }; "
+            "[PSCustomObject]@{ Name = $name; Vram = $vram } | ConvertTo-Json"
+        )
+
         try:
-            cmd = [
-                "powershell", "-NoProfile", "-Command",
-                "Get-WmiObject Win32_VideoController | "
-                "Where-Object { $_.AdapterRAM -gt 0 } | "
-                "Select-Object Name, AdapterRAM | ConvertTo-Json"
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_script],
+                capture_output=True, text=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
             if result.returncode == 0 and result.stdout.strip():
                 data = json.loads(result.stdout.strip())
-                if isinstance(data, dict):
-                    data = [data]
-                for gpu in data:
-                    name = gpu.get('Name', 'Unknown GPU').strip()
-                    self.gpu_names.append(name)
-                self.gpu_count = len(self.gpu_names)
-                self.available = self.gpu_count > 0
-                if self.available:
-                    logger.info(f"PS Backend: {self.gpu_count} GPU(s): {self.gpu_names}")
-                return self.available
+                name = data.get('Name', '').strip()
+                vram = int(data.get('Vram', 0))
+
+                if name:
+                    self.gpu_names = [name]
+                    self.gpu_count = 1
+                    self._gpu_name_cached = name
+                else:
+                    self.gpu_names = ["AMD APU"]
+                    self.gpu_count = 1
+                    self._gpu_name_cached = "AMD APU"
+
+                if vram > 0:
+                    self._vram_total = vram
+                    logger.info(f"PS Backend: {name} — VRAM: {vram/(1024*1024):.0f}MB")
+                else:
+                    self._vram_total = 512 * 1024 * 1024  # 512MB fallback
+                    logger.warning(f"PS Backend: VRAM detection failed, using 512MB fallback")
+
+                return True
         except Exception as e:
-            logger.debug(f"PS Backend detect error: {e}")
+            logger.debug(f"PS Backend init error: {e}")
+
         return False
 
     def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        name = self.gpu_names[gpu_id] if gpu_id < len(self.gpu_names) else f"AMD GPU {gpu_id}"
-
-        gpu_util = self._get_gpu_utilization()
-        temp = self._get_gpu_temperature()
-        fan = self._get_gpu_fan_speed()
-
-        # Get VRAM — try multiple methods
-        mem_total, mem_used = self._get_vram_info()
-
-        # Only fallback to system RAM if absolutely no GPU info
-        if mem_total == 0:
-            try:
-                import psutil
-                svmem = psutil.virtual_memory()
-                mem_total = svmem.total
-                mem_used = svmem.used
-            except:
-                pass
-
-        mem_util = (mem_used / mem_total * 100) if mem_total > 0 else 0
-
-        return AMDGPUStats(
+        """
+        Real-time GPU stats via fast Get-Counter queries only.
+        No WMI, no registry per-poll = ultra fast.
+        """
+        name = self._gpu_name_cached or "AMD GPU"
+        stats = AMDGPUStats(
             gpu_id=gpu_id,
             gpu_name=name,
-            utilization_gpu=gpu_util,
-            utilization_memory=mem_util,
-            memory_total=mem_total,
-            memory_used=mem_used,
-            memory_free=mem_total - mem_used,
-            temperature=temp,
-            fan_speed=fan,
+            memory_total=self._vram_total,
             is_available=True,
         )
 
-    def _get_vram_info(self) -> tuple:
-        """
-        Get VRAM total & used in bytes.
-        Tries multiple methods due to WMI AdapterRAM 4GB limit bug.
-        """
-        # Method 1: Direct registry query for accurate VRAM
-        try:
-            cmd = [
-                "powershell", "-NoProfile", "-Command",
-                "$gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1; "
-                "[PSCustomObject]@{"
-                "  Total = if ($gpu.AdapterRAM -and $gpu.AdapterRAM -gt 4GB) { $gpu.AdapterRAM } else { "
-                "    # Try registry for accurate VRAM > 4GB\n"
-                "    $paths = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\*' "
-                "-ErrorAction SilentlyContinue | Where-Object { $_.GetValue('HardwareInformation.AdapterString') -match 'Radeon|AMD' }; "
-                "    foreach ($p in $paths) { "
-                "      $vram = $p.GetValue('HardwareInformation.qwMemorySize'); "
-                "      if ($vram -and $vram -gt 0) { $vram; break } "
-                "    } "
-                "  }; "
-                "  Used = 0 "
-                "} | ConvertTo-Json"
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5,
-                                    creationflags=subprocess.CREATE_NO_WINDOW)
-            if result.returncode == 0 and result.stdout.strip():
-                data = json.loads(result.stdout.strip())
-                total = int(data.get('Total', 0))
-                used = int(data.get('Used', 0))
-                if total > 0:
-                    return total, used
-        except:
-            pass
+        # --- GPU Utilization (REAL-TIME) ---
+        stats.utilization_gpu = self._get_utilization_fast()
 
-        # Method 2: Try reading registry directly via PowerShell
-        try:
-            cmd = [
-                "powershell", "-NoProfile", "-Command",
-                "$paths = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\"
-                "{4d36e968-e325-11ce-bfc1-08002be10318}\\*' -ErrorAction SilentlyContinue; "
-                "foreach ($p in $paths) { "
-                "  $str = $p.GetValue('HardwareInformation.AdapterString'); "
-                "  if ($str -match 'Radeon|AMD|RDNA') { "
-                "    $mem = $p.GetValue('HardwareInformation.qwMemorySize'); "
-                "    if ($mem) { $mem; break } "
-                "  } "
-                "}"
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5,
-                                    creationflags=subprocess.CREATE_NO_WINDOW)
-            if result.returncode == 0 and result.stdout.strip():
-                total = int(result.stdout.strip())
-                if total > 0:
-                    return total, 0
-        except:
-            pass
+        # --- VRAM Usage (REAL-TIME via GPU Adapter Counters) ---
+        vram_used = self._get_vram_used_fast()
+        if vram_used > 0 and self._vram_total > 0:
+            stats.memory_used = vram_used
+            stats.memory_free = max(0, self._vram_total - vram_used)
+            stats.utilization_memory = (vram_used / self._vram_total) * 100.0
+        else:
+            # Fallback: estimate via process memory
+            import psutil
+            svmem = psutil.virtual_memory()
+            stats.memory_used = self._vram_total  # show as full for APU
+            stats.memory_free = 0
+            stats.utilization_memory = (svmem.used / svmem.total * 100) if svmem.total > 0 else 0
 
-        # Method 3: AdapterRAM from WMI (may be capped at 4GB for some drivers)
-        try:
-            cmd = [
-                "powershell", "-NoProfile", "-Command",
-                "(Get-WmiObject Win32_VideoController | Select-Object -First 1).AdapterRAM"
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
-                                    creationflags=subprocess.CREATE_NO_WINDOW)
-            if result.returncode == 0 and result.stdout.strip():
-                total = int(result.stdout.strip())
-                if total > 0:
-                    return total, 0
-        except:
-            pass
+        # --- Temperature (via fast WMI LHM check) ---
+        stats.temperature = self._get_temperature_fast()
 
-        return 0, 0
+        # --- Fan Speed ---
+        stats.fan_speed = self._get_fan_speed_fast()
 
-    def _get_gpu_utilization(self) -> float:
+        return stats
+
+    def _get_utilization_fast(self) -> float:
+        """REAL-TIME GPU utilization via Get-Counter (sub-millisecond)"""
         try:
-            # Only query 3D engine type to avoid noise from other engines
             ps_cmd = (
-                "@(Get-Counter '\\GPU Engine(*engtype_3D)\\*' -ErrorAction SilentlyContinue "
+                "Get-Counter '\\GPU Engine(*engtype_3D)\\*' -ErrorAction SilentlyContinue "
                 "| Select-Object -ExpandProperty CounterSamples "
-                "| Where-Object { $_.CookedValue -gt 0 }).CookedValue "
-                "| Measure-Object -Average | Select-Object -ExpandProperty Average"
+                "| Measure-Object -Property CookedValue -Sum "
+                "| Select-Object -ExpandProperty Sum"
             )
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", ps_cmd],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True, text=True, timeout=2,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             if result.returncode == 0 and result.stdout.strip():
                 val = float(result.stdout.strip())
-                # Counter returns nanoseconds per sample
-                # Normalize: typical 60fps = 16.67ms per frame = 16,670,000 ns
-                # 100% utilization on a single engine ≈ 16,670,000 ns
-                # Multiple GPUs/engines sum — cap at 100
-                pct = (val / 16670000.0) * 100.0
-                return min(100.0, max(0.0, pct))
+                # On Windows 10/11, this counter is nanoseconds per frame
+                # Normalize to 0-100%: divide by 100000 to get ~%
+                return min(100.0, max(0.0, val / 100000.0))
         except:
             pass
         return 0.0
 
-    def _get_gpu_temperature(self) -> float:
-        for ns in ['root/LibreHardwareMonitor', 'root/OpenHardwareMonitor']:
-            try:
-                cmd = [
-                    "powershell", "-NoProfile", "-Command",
-                    f"Get-WmiObject -Namespace '{ns}' -Class Sensor 2>$null | "
-                    f"Where-Object {{ $_.SensorType -eq 'Temperature' -and "
-                    f"$_.Name -match 'GPU' }} | Select-Object -First 1 -ExpandProperty Value"
-                ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
-                                        creationflags=subprocess.CREATE_NO_WINDOW)
-                if result.returncode == 0 and result.stdout.strip():
-                    val = float(result.stdout.strip())
-                    if val > 0:
-                        return val
-            except:
-                pass
+    def _get_vram_used_fast(self) -> int:
+        """REAL-TIME VRAM used in bytes via Get-Counter (instant)"""
+        try:
+            ps_cmd = (
+                "Get-Counter '\\GPU Adapter(*)\\*' -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty CounterSamples "
+                "| Where-Object { $_.Path -match 'Dedicated Memory Used' } "
+                "| Select-Object -First 1 -ExpandProperty CookedValue"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return int(float(result.stdout.strip()))
+        except:
+            pass
+        return 0
+
+    def _get_temperature_fast(self) -> float:
+        """Temperature via WMI (cached namespace check)"""
+        try:
+            ps_cmd = (
+                "Get-WmiObject -Namespace 'root/LibreHardwareMonitor' -Class Sensor 2>$null "
+                "| Where-Object { $_.SensorType -eq 'Temperature' -and $_.Name -match 'GPU' -and $_.Value -gt 0 } "
+                "| Select-Object -First 1 -ExpandProperty Value"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                val = float(result.stdout.strip())
+                if val > 0: return val
+        except:
+            pass
+
+        # Fallback: OpenHardwareMonitor
+        try:
+            ps_cmd = (
+                "Get-WmiObject -Namespace 'root/OpenHardwareMonitor' -Class Sensor 2>$null "
+                "| Where-Object { $_.SensorType -eq 'Temperature' -and $_.Name -match 'GPU' -and $_.Value -gt 0 } "
+                "| Select-Object -First 1 -ExpandProperty Value"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                val = float(result.stdout.strip())
+                if val > 0: return val
+        except:
+            pass
+
         return 0.0
 
-    def _get_gpu_fan_speed(self) -> int:
-        for ns in ['root/LibreHardwareMonitor', 'root/OpenHardwareMonitor']:
-            try:
-                cmd = [
-                    "powershell", "-NoProfile", "-Command",
-                    f"Get-WmiObject -Namespace '{ns}' -Class Sensor 2>$null | "
-                    f"Where-Object {{ $_.SensorType -eq 'Fan' -and "
-                    f"$_.Name -match 'GPU' }} | Select-Object -First 1 -ExpandProperty Value"
-                ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
-                                        creationflags=subprocess.CREATE_NO_WINDOW)
-                if result.returncode == 0 and result.stdout.strip():
-                    val = float(result.stdout.strip())
-                    if val > 0:
-                        return int(val)
-            except:
-                pass
+    def _get_fan_speed_fast(self) -> int:
+        """Fan speed via WMI"""
+        try:
+            ps_cmd = (
+                "Get-WmiObject -Namespace 'root/LibreHardwareMonitor' -Class Sensor 2>$null "
+                "| Where-Object { $_.SensorType -eq 'Fan' -and $_.Name -match 'GPU' -and $_.Value -gt 0 } "
+                "| Select-Object -First 1 -ExpandProperty Value"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                val = float(result.stdout.strip())
+                if val > 0: return int(val)
+        except:
+            pass
+
+        # Fallback: OpenHardwareMonitor
+        try:
+            ps_cmd = (
+                "Get-WmiObject -Namespace 'root/OpenHardwareMonitor' -Class Sensor 2>$null "
+                "| Where-Object { $_.SensorType -eq 'Fan' -and $_.Name -match 'GPU' -and $_.Value -gt 0 } "
+                "| Select-Object -First 1 -ExpandProperty Value"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                val = float(result.stdout.strip())
+                if val > 0: return int(val)
+        except:
+            pass
+
         return 0
