@@ -202,19 +202,24 @@ class LibreHardwareBackend(MonitorBackend):
                 pass
 
     def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        """Get GPU stats from LHM/OHM via WMI"""
+        """Get GPU stats from LHM/OHM via WMI.
+        Broad sensor matching for AMD APU compatibility:
+        APU sensors may be named 'AMD Radeon Graphics', 'Core (Tctl/Tdie)',
+        'Temperature #1', etc. — none contain 'GPU'.
+        """
         name = self.gpu_names[gpu_id] if gpu_id < len(self.gpu_names) else f"AMD GPU {gpu_id}"
         stats = AMDGPUStats(gpu_id=gpu_id, gpu_name=name, is_available=True)
 
-        # Only works if LHM is running
         try:
             cmd = [
                 "powershell", "-NoProfile", "-Command",
-                "$sensors = Get-WmiObject -Namespace 'root/LibreHardwareMonitor' -Class Sensor "
-                "2>$null; if (-not $sensors) { $sensors = Get-WmiObject -Namespace "
-                "'root/OpenHardwareMonitor' -Class Sensor 2>$null }; "
-                "$sensors | Where-Object { $_.Value -gt 0 } | "
-                "Select-Object SensorType, Name, Value | ConvertTo-Json"
+                "$sensors = @(); "
+                "try { $sensors += Get-WmiObject -Namespace 'root/LibreHardwareMonitor' -Class Sensor 2>$null } catch {}; "
+                "if (-not $sensors) { try { $sensors += Get-WmiObject -Namespace 'root/OpenHardwareMonitor' -Class Sensor 2>$null } catch {} }; "
+                "if ($sensors) { "
+                "  $sensors | Where-Object { $_.Value -gt 0 } | "
+                "  Select-Object SensorType, Name, Value | ConvertTo-Json -Compress "
+                "}"
             ]
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=5,
@@ -225,24 +230,43 @@ class LibreHardwareBackend(MonitorBackend):
                 data = json.loads(result.stdout.strip())
                 if isinstance(data, dict):
                     data = [data]
+
                 for item in data:
                     stype = item.get('SensorType', '')
                     sname = item.get('Name', '')
                     svalue = float(item.get('Value', 0))
-                    if stype == 'Temperature' and 'GPU' in sname:
-                        stats.temperature = svalue
-                    elif stype == 'Fan' and 'GPU' in sname:
-                        stats.fan_speed = int(svalue)
-                    elif stype == 'Load' and 'GPU' in sname:
-                        if 'Memory' not in sname:
-                            stats.utilization_gpu = svalue
-                        else:
-                            stats.utilization_memory = svalue
-                    elif stype == 'Clock' and 'GPU' in sname:
+
+                    # Temperature — accept ANY sensor with GPU-related keywords
+                    if stype == 'Temperature':
+                        if stats.temperature == 0:
+                            stats.temperature = svalue  # first temp sensor wins as fallback
+                        # Prefer GPU/APU-specific sensors
+                        if any(x in sname for x in ['GPU', 'Radeon', 'AMD', 'Core', 'Tctl', 'Tdie']):
+                            stats.temperature = svalue
+                            # Keep this as best match but don't skip other sensor types
+
+                    # Fan
+                    elif stype == 'Fan':
+                        if stats.fan_speed == 0:
+                            stats.fan_speed = int(svalue)
+                        if any(x in sname for x in ['GPU', 'Radeon', 'AMD']):
+                            stats.fan_speed = int(svalue)
+
+                    # Load
+                    elif stype == 'Load':
+                        if any(x in sname for x in ['GPU', 'Radeon', 'AMD']):
+                            if 'Memory' not in sname:
+                                stats.utilization_gpu = svalue
+                            else:
+                                stats.utilization_memory = svalue
+
+                    # Clock
+                    elif stype == 'Clock' and any(x in sname for x in ['GPU', 'Radeon', 'AMD']):
                         if 'Memory' in sname:
                             stats.memory_clock = int(svalue)
                         elif 'Core' in sname:
                             stats.core_clock = int(svalue)
+
         except Exception as e:
             logger.warning(f"LHM sensor error: {e}")
 

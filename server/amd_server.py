@@ -26,8 +26,8 @@ class AMDMonitorServer:
         # Process monitor
         self._process_monitor = None
 
-        # Multi-GPU history
-        self.history_maxlen = 30
+        # Multi-GPU history — 60 points for 30s at 0.5s interval = smooth real-time sparkline
+        self.history_maxlen = 60
         self.gpu_history: Dict[int, deque] = {}
 
     def _get_monitor(self):
