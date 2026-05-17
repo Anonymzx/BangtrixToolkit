@@ -2,46 +2,63 @@
 # BANGTRIXTOOLKIT - Dependencies
 # ============================================
 # Install with: pip install -r requirements.txt
+#
+# MINIMAL DEPENDENCIES (as few as possible)
+# ============================================
+# NEW in v5.0: Universal Hardware Monitor
+# - Works with AMD, NVIDIA, Intel GPUs on Windows + Linux
+# - Uses standard library for most operations
+# - pynvml is OPTIONAL (NVIDIA-only)
+# - psutil is OPTIONAL (system RAM fallback)
 
 # ============================================
-# 📡 WebSocket & HTTP Server (WAJIB)
+# 📡 WebSocket & HTTP Server (REQUIRED)
 # ============================================
-# Diperlukan untuk AMD Monitor WebSocket + streaming
+# Required for hardware monitor WebSocket streaming
 aiohttp>=3.8.0
 async-timeout>=4.0.0
 
 # ============================================
-# 🌐 HTTP Client (Opsional - translate node)
+# 🌐 HTTP Client (Optional - translate node)
 # ============================================
 # Google Translate API + GitHub API (LHM download)
-# NOTE: Kalau tidak diinstall, Python urllib akan dipakai
+# NOTE: If not installed, Python urllib will be used
 requests>=2.31.0
 
 # ============================================
-# 🖥️ System Monitoring (DIREKOMENDASIKAN)
+# 🖥️ System Monitoring (OPTIONAL - RECOMMENDED)
 # ============================================
-# Diperlukan untuk:
-#   - Process Monitor (deteksi generasi ComfyUI)
-#   - VRAM/memory fallback
-#   - CPU utilization tracking
+# psutil provides better system RAM monitoring
+# Without it, the fallback reads /proc/meminfo on Linux
 psutil>=5.9.0
 
 # ============================================
-# 🐧 AMD GPU - Linux (ROCm)
+# 🎮 NVIDIA GPU - pynvml (OPTIONAL)
 # ============================================
-# Hanya untuk Linux dengan driver ROCm terinstall
-pyrsmi>=0.2.0; sys_platform == "linux"
+# pynvml provides the most accurate stats for NVIDIA GPUs
+# on both Windows and Linux. If not installed, the monitor
+# falls back to:
+#   Windows: PDH Performance Counters (Task Manager source)
+#   Linux:   nvidia-smi CLI parsing
+# pynvml
 
 # ============================================
-# 🪟 AMD GPU - Windows (Legacy ADL)
+# 🪟 Windows ADL - AMD Display Library (OPTIONAL)
 # ============================================
-# Opsional: untuk GPU temperature/fan via ADL
-# NOTE: Sebagian driver AMD terbaru mungkin tidak kompatibel
-pyadl>=1.0.0; sys_platform == "win32"
+# For GPU temperature/fan via ADL on legacy AMD drivers
+# Most users do NOT need this - PDH counters are preferred
+# pyadl>=1.0.0; sys_platform == "win32"
 
 # ============================================
-# 🌡️ LibreHardwareMonitor (Windows)
+# 🐧 Linux ROCm - pyrsmi (OPTIONAL - NOT RECOMMENDED)
 # ============================================
-# TIDAK PERLU install! Auto-download dari GitHub saat runtime.
-# Baca: Temperature, Fan, Clock, Power, Load via WMI.
-# Minimal: Python 3.8+ (built-in: subprocess, wmi, powershell)
+# The universal monitor reads AMD GPU stats directly
+# from /sys/class/drm/ sysfs files — NO ROCm needed!
+# pyrsmi>=0.2.0; sys_platform == "linux"
+
+# ============================================
+# 🌡️ LibreHardwareMonitor (Windows - OPTIONAL)
+# ============================================
+# Auto-downloaded from GitHub at runtime if needed.
+# Reads: Temperature, Fan, Clock, Power, Load via WMI.
+# Not required — PDH counters are preferred.
