@@ -1,17 +1,20 @@
 """
 BANGTRIXTOOLKIT - ComfyUI Custom Nodes
 ======================================
-Translate Universal + AMD Monitor Overlay
+Translate Universal + Universal Hardware Monitor Overlay
 """
 
 import importlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Dynamic import — hanya load node yang benar-benar ada
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 try:
-    _mod = importlib.import_module(".nodes.translate_universal", package=__package__)
+    _mod = importlib.import_module(".btx_nodes.translate_universal", package=__package__)
     if hasattr(_mod, "NODE_CLASS_MAPPINGS"):
         NODE_CLASS_MAPPINGS.update(_mod.NODE_CLASS_MAPPINGS)
     if hasattr(_mod, "NODE_DISPLAY_NAME_MAPPINGS"):
@@ -30,54 +33,36 @@ __all__ = [
 
 
 # ============================================================
-# 🚀 SERVER EXTENSION — AMD Monitor Overlay (WebSocket)
+# 🚀 SERVER EXTENSION — Universal Hardware Monitor WebSocket
 # ============================================================
+# Register WebSocket route. Uses direct file path to avoid
+# Python module naming issues with ComfyUI's load mechanism.
+import sys as _sys, os as _os
+from importlib import util as _util
 
-async def on_app_started(app):
-    """Register WebSocket endpoint for AMD Monitor overlay"""
-    from aiohttp import web
-    from .server.amd_server import get_amd_server
-
-    amd_server = get_amd_server()
-
-    async def websocket_handler(request):
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-        await amd_server.handle_client(ws)
-        return ws
-
-    try:
-        app.router.add_get('/ws/amd_monitor', websocket_handler)
-        print("🔴 BANGTRIXTOOLKIT: AMD Monitor WebSocket at /ws/amd_monitor")
-    except RuntimeError:
-        pass  # Route already registered
-
-    if not amd_server.running:
-        amd_server.start_streaming()
-        print("✅ BANGTRIXTOOLKIT: AMD Monitor overlay streaming started")
-
-
-# Register with ComfyUI — use lazy approach to avoid timing issues
 try:
-    from server import PromptServer
-    if PromptServer.instance:
-        prompt_server = PromptServer.instance
-        prompt_server.app.on_startup.append(on_app_started)
-        print("✅ BANGTRIXTOOLKIT: Server extension registered (AMD Monitor overlay)")
-    else:
-        # PromptServer not yet initialized — store for later
-        _pending_startup_hooks = getattr(PromptServer, '_pending_startup_hooks', [])
-        _pending_startup_hooks.append(on_app_started)
-        PromptServer._pending_startup_hooks = _pending_startup_hooks
+    import server as _comfy_server
+    _PromptServer = _comfy_server.PromptServer
+    if _PromptServer.instance:
+        _app = _PromptServer.instance.app
+        from aiohttp import web
+        # Import hw_server directly via absolute file path
+        _hws_path = _os.path.join(_os.path.dirname(__file__), "monitor", "hw_server.py")
+        _spec = _util.spec_from_file_location("BangtrixToolkit_hw_server", _hws_path)
+        _hws_mod = _util.module_from_spec(_spec)
+        _sys.modules['BangtrixToolkit_hw_server'] = _hws_mod
+        _spec.loader.exec_module(_hws_mod)
+        _get_hw_server = _hws_mod.get_hw_server
         
-        # Monkey-patch PromptServer.__init__ to register after instance is created
-        _original_init = PromptServer.__init__
-        def _patched_init(self, *args, **kwargs):
-            _original_init(self, *args, **kwargs)
-            for hook in getattr(PromptServer, '_pending_startup_hooks', []):
-                self.app.on_startup.append(hook)
-            PromptServer._pending_startup_hooks = []
-        PromptServer.__init__ = _patched_init
-        print("✅ BANGTRIXTOOLKIT: Server extension queued (lazy registration)")
+        hw_server = _get_hw_server()
+        async def ws_handler(request):
+            ws = web.WebSocketResponse()
+            await ws.prepare(request)
+            await hw_server.handle_client(ws)
+            return ws
+        _app.router.add_get('/ws/hw_monitor', ws_handler)
+        print("🖥️ BANGTRIXTOOLKIT: HW Monitor WebSocket at /ws/hw_monitor")
+    else:
+        print("🖥️ BANGTRIXTOOLKIT: PromptServer pending")
 except Exception as e:
     print(f"⚠️ BANGTRIXTOOLKIT: Server extension skipped: {e}")
