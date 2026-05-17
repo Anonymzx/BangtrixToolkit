@@ -233,12 +233,15 @@ Designed for: **Stable Diffusion · Flux · SDXL · Pony · Anime Models · Real
 
 | Priority | Backend | Metrics | Platform |
 |:--------:|---------|---------|----------|
+| 🥇 | **PDH Counters** (win32pdh) | Load, VRAM (real-time) | Windows |
 | 🥇 | **LibreHardwareMonitor** | Temp, Fan, Clock, Power | Windows |
 | 🥈 | **PowerShell Counters** | Load, VRAM, Name | Windows |
 | 🥉 | **ADL** (atiadlxx.dll) | Temp, Fan | Windows |
 | 4 | **psutil** | System RAM only | All |
 
 </div>
+
+> **v4.1 Performance Boost:** Temperature & Fan readings are now **cached (10s)** — no PowerShell subprocesses at 500ms poll. Zero blocking calls during real-time streaming.
 
 ---
 

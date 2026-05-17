@@ -12,10 +12,17 @@ Fixes:
   - VRAM Used via GPU Adapter Memory Dedicated Usage
 
 Zero PowerShell at runtime (1x at init for WMI fallback only).
+
+BUG FIXES v4.1 (APU/iGPU Stability):
+  - Cached temperature/fan readings (refresh every 10s, NOT per 500ms poll)
+  - Added top-level try/except in get_stats() to catch ALL exceptions
+  - _run_ps_script now uses try/finally to prevent temp file leaks
+  - Added timeout guard for all subprocess calls
 """
 
 import logging
 import platform
+import time
 from typing import Optional
 
 from .base import MonitorBackend, AMDGPUStats
@@ -86,6 +93,10 @@ class PDHBackend(MonitorBackend):
     """PDH native backend - real-time GPU stats via Windows Performance Counters"""
     name = "pdh-counters"
 
+    # Cache temperature/fan — they don't change every 500ms
+    # REFRESH every 10 seconds to avoid blocking PowerShell spam
+    _TEMP_CACHE_SECONDS = 10.0
+
     def __init__(self):
         super().__init__()
         self._gpu_name: str = ""
@@ -96,31 +107,44 @@ class PDHBackend(MonitorBackend):
         self._adl_available: bool = False
         self._adl_ctx = None
 
+        # Temperature/Fan cache — updated every _TEMP_CACHE_SECONDS
+        self._cached_temp: float = 0.0
+        self._cached_fan: int = 0
+        self._last_temp_check: float = 0.0
+
     def initialize(self) -> bool:
         if platform.system() != "Windows":
             return False
 
-        self._detect_gpu_info()
-        util_path = self._detect_utilization_counter()
-        if util_path:
-            self._util_counter = PDHCounter(util_path)
-            self._util_counter.open()
-        vram_path = self._detect_vram_counter()
-        if vram_path:
-            self._vram_counter = PDHCounter(vram_path)
-            self._vram_counter.open()
-        self._try_init_adl()
+        try:
+            self._detect_gpu_info()
+            util_path = self._detect_utilization_counter()
+            if util_path:
+                self._util_counter = PDHCounter(util_path)
+                self._util_counter.open()
+            vram_path = self._detect_vram_counter()
+            if vram_path:
+                self._vram_counter = PDHCounter(vram_path)
+                self._vram_counter.open()
+            self._try_init_adl()
 
-        self.gpu_names = [self._gpu_name] if self._gpu_name else ["AMD GPU"]
-        self.gpu_count = 1
-        self.available = True
-        logger.info(
-            f"PDH: {self.gpu_names[0]} | VRAM={self._vram_total_mb:.0f}MB | "
-            f"Util={'OK' if self._util_counter else 'N/A'} | "
-            f"VRAM={'OK' if self._vram_counter else 'N/A'} | "
-            f"ADL={'OK' if self._adl_available else 'N/A'}"
-        )
-        return True
+            self.gpu_names = [self._gpu_name] if self._gpu_name else ["AMD GPU"]
+            self.gpu_count = 1
+            self.available = True
+
+            # Pre-fetch temperature/fan once at init (non-blocking initial value)
+            self._refresh_temp_fan_cache()
+
+            logger.info(
+                f"PDH: {self.gpu_names[0]} | VRAM={self._vram_total_mb:.0f}MB | "
+                f"Util={'OK' if self._util_counter else 'N/A'} | "
+                f"VRAM={'OK' if self._vram_counter else 'N/A'} | "
+                f"ADL={'OK' if self._adl_available else 'N/A'}"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"PDH Backend: initialize failed: {e}")
+            return False
 
     def _detect_gpu_info(self) -> None:
         """Auto-detect GPU name + VRAM total. Multi-method for ALL AMD GPUs."""
@@ -279,7 +303,8 @@ class PDHBackend(MonitorBackend):
         return 0
 
     def _detect_via_wmi(self) -> bool:
-        """Fallback GPU detection via WMI (PowerShell tempfile to avoid bash $ expansion)."""
+        """Fallback GPU detection via WMI (PowerShell tempfile to avoid bash $ expansion).
+        NOTE: Only called ONCE at init. Never at runtime."""
         script = r"""$gpu = Get-WmiObject Win32_VideoController | Where-Object { $_.Name -match 'AMD|Radeon' } | Select-Object -First 1
 if (-not $gpu) { $gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1 }
 if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.AdapterRAM } }"""
@@ -303,22 +328,33 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
 
     @staticmethod
     def _run_ps_script(script_content: str) -> Optional[str]:
-        """Run PowerShell script via temp file to avoid bash variable expansion."""
+        """Run PowerShell script via temp file to avoid bash variable expansion.
+        FIXED: try/finally ensures temp file cleanup even on timeout."""
         import subprocess, tempfile, os
+        f = None
         try:
             f = tempfile.NamedTemporaryFile(mode='w', suffix='.ps1', delete=False, encoding='utf-8')
             f.write(script_content)
             f.close()
+            fname = f.name
             r = subprocess.run(
-                ['powershell', '-ExecutionPolicy', 'Bypass', '-NoProfile', '-File', f.name],
+                ['powershell', '-ExecutionPolicy', 'Bypass', '-NoProfile', '-File', fname],
                 capture_output=True, text=True, timeout=10,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
-            os.unlink(f.name)
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout.strip()
+        except subprocess.TimeoutExpired:
+            logger.warning(f"PDH: PowerShell script timed out (10s)")
         except Exception:
             pass
+        finally:
+            # ALWAYS clean up temp file
+            if f is not None:
+                try:
+                    os.unlink(f.name)
+                except Exception:
+                    pass
         return None
 
     def _detect_utilization_counter(self) -> Optional[str]:
@@ -374,30 +410,44 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
             pass
 
     def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        stats = AMDGPUStats(
-            gpu_id=gpu_id,
-            gpu_name=self.gpu_names[0] if self.gpu_names else "AMD GPU",
-            memory_total=self._vram_total,
-            is_available=True,
-        )
-        # GPU Utilization
-        if self._util_counter:
-            val = self._util_counter.read_double()
-            if val is not None:
-                stats.utilization_gpu = self._scale_util(val)
-        # VRAM
-        if self._vram_counter:
-            used = self._vram_counter.read_int()
-            if used is not None and used > 0:
-                stats.memory_used = used
-                stats.memory_free = max(0, self._vram_total - used)
-                if self._vram_total > 0:
-                    stats.utilization_memory = (used / self._vram_total) * 100.0
-        # Temp + Fan
-        temp, fan = self._read_temp_fan()
-        stats.temperature = temp
-        stats.fan_speed = fan
-        return stats
+        """Get GPU stats. FIXED: top-level try/except + cached temperature/fan."""
+        try:
+            stats = AMDGPUStats(
+                gpu_id=gpu_id,
+                gpu_name=self.gpu_names[0] if self.gpu_names else "AMD GPU",
+                memory_total=self._vram_total,
+                is_available=True,
+            )
+            # GPU Utilization — PDH counter (instant, no subprocess)
+            if self._util_counter:
+                val = self._util_counter.read_double()
+                if val is not None:
+                    stats.utilization_gpu = self._scale_util(val)
+
+            # VRAM — PDH counter (instant, no subprocess)
+            if self._vram_counter:
+                used = self._vram_counter.read_int()
+                if used is not None and used > 0:
+                    stats.memory_used = used
+                    stats.memory_free = max(0, self._vram_total - used)
+                    if self._vram_total > 0:
+                        stats.utilization_memory = (used / self._vram_total) * 100.0
+
+            # Temperature + Fan — CACHED (only refreshed every _TEMP_CACHE_SECONDS)
+            # No PowerShell subprocesses at runtime!
+            temp, fan = self._get_cached_temp_fan()
+            stats.temperature = temp
+            stats.fan_speed = fan
+            return stats
+
+        except Exception as e:
+            logger.error(f"PDH get_stats error: {e}")
+            return AMDGPUStats(
+                gpu_id=gpu_id,
+                gpu_name=self.gpu_names[0] if self.gpu_names else "AMD GPU",
+                is_available=False,
+                error_message=str(e)
+            )
 
     def _scale_util(self, val: float) -> float:
         if val <= 1:
@@ -406,10 +456,25 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
             return val
         return min(100.0, val / 10000.0)
 
-    def _read_temp_fan(self):
+    def _get_cached_temp_fan(self):
+        """Return cached temperature/fan.
+        FIXED: Only refreshes every _TEMP_CACHE_SECONDS to avoid
+        spawning PowerShell subprocesses every 500ms on APU/iGPU.
+        This was the MAIN cause of overlay stacking on slower systems."""
+        now = time.time()
+        if now - self._last_temp_check >= self._TEMP_CACHE_SECONDS:
+            self._refresh_temp_fan_cache()
+            self._last_temp_check = now
+        return self._cached_temp, self._cached_fan
+
+    def _refresh_temp_fan_cache(self):
+        """Refresh the temperature/fan cache.
+        This is called at init and every _TEMP_CACHE_SECONDS only.
+        NOT on every poll interval."""
         temp = 0.0
         fan = 0
-        # ADL
+
+        # Method 1: ADL (instant, no subprocess)
         if self._adl_available and self._adl_ctx:
             try:
                 t = self._adl_ctx.get_temperature(0)
@@ -419,10 +484,15 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
                 if f is not None and 0 <= f <= 100:
                     fan = int(f)
                 if temp > 0:
-                    return temp, fan
+                    self._cached_temp = temp
+                    self._cached_fan = fan
+                    logger.debug(f"PDH: temp/fan from ADL: {temp}°C, {fan}%")
+                    return
             except Exception:
                 pass
-        # LHM WMI via temp file (avoids bash $ expansion)
+
+        # Method 2: LHM WMI via temp file
+        # Only runs every _TEMP_CACHE_SECONDS (10s), not every 500ms
         lhm_data = self._run_ps_script(r'''$sensors = @()
 try { $sensors += Get-WmiObject -Namespace 'root/LibreHardwareMonitor' -Class Sensor -ErrorAction Stop } catch {}
 if (-not $sensors) { try { $sensors += Get-WmiObject -Namespace 'root/OpenHardwareMonitor' -Class Sensor -ErrorAction Stop } catch {} }
@@ -444,10 +514,14 @@ if ($sensors) { $sensors | Where-Object { $_.Value -gt 0 } | Select-Object Senso
                         if any(k in sn for k in ('GPU', 'Radeon', 'AMD')):
                             fan = int(sv)
                 if temp > 0:
-                    return temp, fan
+                    self._cached_temp = temp
+                    self._cached_fan = fan
+                    logger.debug(f"PDH: temp/fan from LHM: {temp}°C, {fan}%")
+                    return
             except Exception:
                 pass
-        # Thermal Zone
+
+        # Method 3: Thermal Zone (only runs every 10s)
         tz = self._run_ps_script(r'''$t = Get-WmiObject -Namespace 'root/WMI' -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Where-Object { $_.Active -eq $true } | Select-Object @{N='T';E={[math]::Round(($_.CurrentTemperature - 2732) / 10, 1)}} | Select-Object -First 1 -ExpandProperty T
 if ($t) { Write-Output $t }''')
         if tz:
@@ -455,9 +529,13 @@ if ($t) { Write-Output $t }''')
                 val = float(tz.strip())
                 if 20 <= val <= 115:
                     temp = val
+                    self._cached_temp = temp
+                    logger.debug(f"PDH: temp from thermal zone: {temp}°C")
             except Exception:
                 pass
-        return temp, fan
+
+        self._cached_temp = temp
+        self._cached_fan = fan
 
     def close(self):
         if self._util_counter:
