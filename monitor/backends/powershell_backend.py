@@ -165,32 +165,47 @@ class PowerShellBackend(MonitorBackend):
     def _get_utilization_percent(self) -> float:
         """
         Get GPU utilization as percentage using the same source as Task Manager.
-        This is the most reliable method for both discrete GPU and APU.
+        Fixes: Bug where GPU Engine counter returned wrong values for AMD GPUs
+        that already report in percentage (not nanoseconds).
         """
         # Method 1: GPU Adapter Utilization Percentage (Task Manager data)
-        try:
-            ps_cmd = (
-                "Get-Counter '\\GPU Adapter(*)\\*' -ErrorAction SilentlyContinue "
-                "| Select-Object -ExpandProperty CounterSamples "
-                "| Where-Object { $_.Path -match 'Utilization Percentage' } "
-                "| Select-Object -First 1 -ExpandProperty CookedValue"
-            )
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-Command", ps_cmd],
-                capture_output=True, text=True, timeout=2,
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                val = float(result.stdout.strip())
-                return min(100.0, max(0.0, val))
-        except:
-            pass
+        # This is the MOST ACCURATE and should work on all AMD GPUs.
+        # Try multiple query patterns to handle different Windows/Driver versions.
+        for query_pattern in [
+            "Get-Counter '\\GPU Adapter(*)\\*'",
+            "Get-Counter '\\GPU(*)\\*'",
+        ]:
+            try:
+                ps_cmd = (
+                    f"{query_pattern} -ErrorAction SilentlyContinue "
+                    "| Select-Object -ExpandProperty CounterSamples "
+                    "| Where-Object { $_.Path -match 'Utilization Percentage' -or $_.Path -match 'Utilization\\%' } "
+                    "| Select-Object -First 1 -ExpandProperty CookedValue"
+                )
+                result = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps_cmd],
+                    capture_output=True, text=True, timeout=2,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    val = float(result.stdout.strip())
+                    # Sanity check: 0-100 range
+                    if 0 <= val <= 100:
+                        return min(100.0, max(0.0, val))
+                    # Some drivers report 0-1 range
+                    if 0 <= val <= 1:
+                        return min(100.0, max(0.0, val * 100.0))
+            except:
+                pass
 
-        # Method 2: GPU Engine 3D sum (with good scaling)
+        # Method 2: GPU Engine 3D sum — fix scaling for AMD GPUs
+        # On most modern GPUs (including AMD Adrenalin drivers), the counter
+        # already returns percentage values directly (0-100), NOT nanoseconds.
         try:
             ps_cmd = (
                 "Get-Counter '\\GPU Engine(*engtype_3D)\\*' -ErrorAction SilentlyContinue "
                 "| Select-Object -ExpandProperty CounterSamples "
+                "| Where-Object { $_.Path -notmatch 'pid_\\\\d+_' } "  # skip per-process, get total
                 "| Measure-Object -Property CookedValue -Sum "
                 "| Select-Object -ExpandProperty Sum"
             )
@@ -201,11 +216,79 @@ class PowerShellBackend(MonitorBackend):
             )
             if result.returncode == 0 and result.stdout.strip():
                 val = float(result.stdout.strip())
-                # On APU: counter returns time in ns. Divide to get rough %.
-                #   val=100000 → ~10%
-                #   val=500000 → ~50%
-                #   val=900000 → ~90%
-                return min(100.0, max(0.0, val / 100000.0))
+                # Dynamic scaling: auto-detect whether value is percentage or nanoseconds
+                if val > 1000:
+                    # nanosecond format: 1,000,000 ns = 100% utilization over 100ms sample
+                    # Typical: 0-10,000,000 ns range → scale to 0-100%
+                    pct = val / 100000.0
+                elif val <= 1:
+                    # fraction 0-1 format
+                    pct = val * 100.0
+                else:
+                    # already percentage 0-100
+                    pct = val
+                return min(100.0, max(0.0, pct))
+        except:
+            pass
+
+        # Method 3: fallback — try per-process 3D engine sum (some systems need this)
+        try:
+            ps_cmd = (
+                "Get-Counter '\\GPU Engine(*engtype_3D)\\*' -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty CounterSamples "
+                "| Where-Object { $_.CookedValue -gt 0 } "
+                "| Measure-Object -Property CookedValue -Sum "
+                "| Select-Object -ExpandProperty Sum"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                val = float(result.stdout.strip())
+                if val > 1000:
+                    pct = val / 100000.0
+                elif val <= 1:
+                    pct = val * 100.0
+                else:
+                    pct = val
+                return min(100.0, max(0.0, pct))
+        except:
+            pass
+
+        # Method 4: GPU Process Memory — last resort check
+        # If no counters returned anything, try reading from Performance Counter API directly
+        try:
+            ps_cmd = (
+                "Get-Counter -ListSet 'GPU Adapter' -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty Paths "
+                "| Where-Object { $_ -match 'Utilization' } "
+                "| Select-Object -First 1"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                counter_path = result.stdout.strip()
+                ps_cmd2 = (
+                    f"Get-Counter '{counter_path}' -ErrorAction SilentlyContinue "
+                    "| Select-Object -ExpandProperty CounterSamples "
+                    "| Select-Object -First 1 -ExpandProperty CookedValue"
+                )
+                result2 = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps_cmd2],
+                    capture_output=True, text=True, timeout=2,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                if result2.returncode == 0 and result2.stdout.strip():
+                    val = float(result2.stdout.strip())
+                    if 0 <= val <= 100:
+                        return val
+                    if 0 <= val <= 1:
+                        return val * 100.0
         except:
             pass
 

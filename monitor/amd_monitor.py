@@ -20,6 +20,7 @@ from typing import Optional, List
 
 from .backends import (
     MonitorBackend, AMDGPUStats,
+    PDHBackend,
     PowerShellBackend,
     ADLBackend,
     LibreHardwareBackend,
@@ -44,10 +45,11 @@ class AMDMonitor:
     def _initialize(self):
         """Try backends in priority order"""
         backends = [
-            ("libre-hardware-monitor", LibreHardwareBackend),
-            ("powershell-counters", PowerShellBackend),
-            ("adl", ADLBackend),
-            ("psutil-fallback", PsutilBackend),
+            ("pdh-counters", PDHBackend),              # #1: Windows PDH native (sumber Task Manager)
+            ("libre-hardware-monitor", LibreHardwareBackend),  # #2: LHM (paling lengkap)
+            ("powershell-counters", PowerShellBackend), # #3: PowerShell fallback
+            ("adl", ADLBackend),                        # #4: AMD ADL
+            ("psutil-fallback", PsutilBackend),          # #5: System RAM only
         ]
 
         for name, cls in backends:
