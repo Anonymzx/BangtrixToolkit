@@ -16,7 +16,7 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 ---
 
 <details open>
-<summary><b>✨ Fitur Utama</b> (Klik untuk menutup)</summary>
+<summary><b>✨ Key Features</b> (Click to Close)</summary>
 <br>
 
 ### 🖥️ Advanced HW Monitor
@@ -24,23 +24,8 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 Real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
 
 ```
-┌────────────────────────────┐
-│ 🖥️ HW Monitor              │
-├────────────────────────────┤
-│  AMD Radeon RX 7800 XT     │
-│ ┌───────┬──────────┐       │
-│ │GPU    │ VRAM     │       │
-│ │ 1.2%  │1.5/16.4GB│       │
-│ │ █░░░░░│███░░░░░░│       │
-│ ├───────┼──────────┤       │
-│ │ Temp  │ Fan      │       │
-│ │ 45°C  │ 1200 RPM │       │
-│ │ ███░░░│ █░░░░░░░│       │
-│ └───────┴──────────┘       │
-│  ╱ GPU Load History ╲      │
-│ ──────────────────────     │
-│ 🟢 LIVE │ REST 1s          │
-└────────────────────────────┘
+<img width="264" height="249" alt="image" src="https://github.com/user-attachments/assets/3967ee42-4f6e-40f7-b5fd-e55c21f719a4" />
+
 ```
 
 ### 🔌 Native AMD ROCm Support
@@ -88,6 +73,8 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 > 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
 
+**Sample**
+
 <div align="center">
 <img width="570" alt="Workflow" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
 <br><br>
@@ -99,10 +86,13 @@ An integrated translation node that converts prompts from **16+ languages** into
 ---
 
 <details>
-<summary><b>⚙️ Kustomisasi UI & Settings</b> (Klik untuk membuka)</summary>
+<summary><b>⚙️ Customization UI & Settings</b> (Click to Open)</summary>
 <br>
 
 The HW Monitor integrates directly with the ComfyUI Settings panel. All changes apply **instantly** — no browser reload required.
+<br>
+<img width="246" height="237" alt="image" src="https://github.com/user-attachments/assets/57bab366-c238-4653-8580-bd5c9cae3a61" />
+<br>
 
 | Setting | Type | Options |
 |---------|------|---------|
@@ -113,6 +103,10 @@ The HW Monitor integrates directly with the ComfyUI Settings panel. All changes 
 | **📦 Compact Mode** | Boolean | Hide sparkline graph for minimal footprint |
 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
+
+**Theme Sample**
+<img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> <img width="266" height="252" alt="image" src="https://github.com/user-attachments/assets/066e7968-1df3-4cec-b9bf-98f9bda1d06c" /> <img width="268" height="254" alt="image" src="https://github.com/user-attachments/assets/bf4e645f-b83f-41f9-99f5-49adaf63fafa" /> <img width="269" height="253" alt="image" src="https://github.com/user-attachments/assets/030c8548-f47d-4871-b64a-a18b36d33fea" />
+<br>
 
 **Keyboard Shortcuts:**
 
