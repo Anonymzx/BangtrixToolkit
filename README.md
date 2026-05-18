@@ -8,28 +8,64 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python)](https://python.org)
 [![License](https://img.shields.io/github/license/Anonymzx/BangtrixToolkit?style=flat-square)](LICENSE)
 
+A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay** with native AMD ROCm support, and a **Universal Prompt Translator** node — all in one clean package.
+
 </div>
 
 ---
 
-## ✨ Key Features
+<details open>
+<summary><b>✨ Fitur Utama</b> (Klik untuk menutup)</summary>
+<br>
 
-- **🖥️ Advanced HW Monitor** — Real-time overlay displaying **GPU Load**, **VRAM Usage**, **Temperature**, and **Fan Speed** directly on the ComfyUI canvas. Includes a live sparkline graph and draggable widget.
+### 🖥️ Advanced HW Monitor
 
-- **🔌 Multi-Backend Intelligence** — Auto-detects your GPU vendor and OS, then selects the best data source:
-  - **AMD RDNA3** (RX 7000+): Native **ROCm / HIP SDK** integration via `hipInfo.exe` + Windows **PDH counters** for live VRAM
-  - **Legacy AMD**: ADL fallback
-  - **NVIDIA**: NVML / `nvidia-smi`
-  - **Intel ARC / iGPU**: PDH + sysfs
-  - **Linux**: `/sys/class/drm/`, `nvidia-smi`, `hwmon`
+Real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
 
-- **🎨 Customizable UI** — Change the overlay theme, refresh rate, background opacity, and toggle **Compact Mode** — all from a built-in settings panel (⚙). No reload required.
+### 🔌 Native AMD ROCm Support
 
-- **🌐 Universal Prompt Translator** — Translate and enhance prompts directly inside ComfyUI with Google Translate integration, quality/style presets, and auto-negative generation.
+Intelligent multi-backend architecture that auto-detects your GPU vendor and selects the optimal data source:
+
+| GPU | Platform | Primary Backend | Fallback |
+|-----|----------|----------------|----------|
+| **AMD RDNA3** (RX 7000+) | Windows | ROCm / HIP SDK (`hipInfo.exe`) + PDH | PowerShell / WMI |
+| **Legacy AMD** | Windows | ADL (`atiadlxx.dll`) + PDH | PowerShell |
+| **NVIDIA** | Windows / Linux | NVML / `nvidia-smi` | PDH / sysfs |
+| **Intel ARC / iGPU** | Windows / Linux | PDH + sysfs | PowerShell / `hwmon` |
+
+No third-party background applications required — the backend uses only native OS tools and your existing AMD driver stack.
+
+### 🌐 Universal Prompt Translator
+
+An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning. Features quality presets (Normal / High / Ultra), style presets (Anime / Realistic / Cinematic / Fantasy), auto-negative generation, and a built-in translation cache for fast repeated workflows.
+
+</details>
 
 ---
 
-## 📦 Installation
+<details>
+<summary><b>⚙️ Kustomisasi UI & Settings</b> (Klik untuk membuka)</summary>
+<br>
+
+The HW Monitor is fully integrated with the built-in ComfyUI Settings dialog. All changes apply **instantly** — no browser reload required.
+
+| Setting | Type | Options |
+|---------|------|---------|
+| **🎨 Theme** | Combo | Default Green · Neon Blue · Crimson Red · Hacker (Black & Green) |
+| **⏱️ Refresh Rate** | Combo | 500ms · 1s · 2s |
+| **👁️ Show on Startup** | Boolean | On / Off |
+| **🔲 Background Opacity** | Slider | 0.1 – 1.0 (step 0.05) |
+| **📦 Compact Mode** | Boolean | Hide sparkline graph for minimal footprint |
+
+Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header, or through the ComfyUI Settings menu.
+
+</details>
+
+---
+
+<details>
+<summary><b>🚀 Cara Instalasi</b> (Klik untuk membuka)</summary>
+<br>
 
 ```bash
 cd ComfyUI/custom_nodes
@@ -37,50 +73,27 @@ git clone https://github.com/Anonymzx/BangtrixToolkit.git
 pip install -r BangtrixToolkit/requirements.txt
 ```
 
-> Restart ComfyUI after installation. The HW Monitor overlay appears automatically — no node setup required.
+> **Restart ComfyUI** after installation. The HW Monitor overlay appears automatically — no node configuration needed.
+
+</details>
 
 ---
 
-## ⚙️ HW Monitor Quick Reference
+<details>
+<summary><b>⚠️ Catatan Khusus Pengguna AMD</b> (Klik untuk membuka)</summary>
+<br>
 
-| Action | Shortcut |
-|--------|----------|
-| Show / Hide Overlay | `Ctrl + Shift + M` |
-| Minimize Widget | Click `−` button |
-| Open Settings Panel | Click `⚙` button |
-| Reposition Widget | Drag the header bar |
-
-### Settings
-
-| Setting | Type | Options |
-|---------|------|---------|
-| **Theme** | Combo | Default Green · Neon Blue · Crimson Red · Hacker |
-| **Refresh Rate** | Combo | 500ms · 1s · 2s |
-| **Show on Startup** | Boolean | On / Off |
-| **Background Opacity** | Slider | 0.1 – 1.0 |
-| **Compact Mode** | Boolean | Hide sparkline graph for minimal footprint |
-
----
-
-## 📋 AMD Users — Important Note
-
-> **For AMD RDNA3 GPUs (RX 7000 series and newer):**
-> 
-> Installing the **AMD HIP SDK / ROCm** is strongly recommended to unlock full sensor data (temperature, fan, core clock). Without it, the monitor gracefully falls back to **Windows PDH counters** which provide **GPU Load and VRAM** — temperature and fan will show `N/A`.
+> **Untuk pengguna GPU AMD — khususnya arsitektur RDNA3 (seri RX 7000 ke atas):**
 >
-> Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/rocm.html)
+> Windows membatasi akses sensor **suhu (temperature)** dan **kipas (fan)** pada GPU AMD modern. Agar HW Monitor dapat membaca nilai **TEMP** dan **FAN** secara sempurna tanpa aplikasi pihak ketiga, **sangat disarankan untuk menginstal AMD ROCm / HIP SDK**.
 >
-> After installation, the backend auto-detects `hipInfo.exe` from `HIP_PATH` and combines it with live PDH data for complete monitoring.
+> 📥 Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/rocm.html)
+>
+> Setelah instalasi, backend akan otomatis mendeteksi `hipInfo.exe` melalui environment variable `HIP_PATH` dan menggabungkannya dengan live data dari Windows PDH counters.
+>
+> **Tanpa ROCm**, sistem akan otomatis menggunakan fallback Windows — tetap menampilkan **GPU Load** dan **VRAM Usage**, namun suhu dan kipas akan menampilkan `N/A`.
 
----
-
-## 🚀 Roadmap
-
-| Version | Features |
-|:-------:|----------|
-| **v1** ✅ | Universal Prompt Translator |
-| **v2** ✅ | HW Monitor — AMD / NVIDIA / Intel · Multi-backend · Settings UI |
-| **v3** 🔜 | Smart Cache · Performance Optimizer · Benchmark Tools |
+</details>
 
 ---
 
