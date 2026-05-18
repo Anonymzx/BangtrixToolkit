@@ -90,9 +90,10 @@ class UniversalMonitor:
         chain = []
 
         if self.os_type == 'windows':
-            # For AMD: try ADL first (temp/fan), then PDH (utilization/VRAM)
+            # For AMD: try ROCm first (hipInfo + amd-smi), then ADL (temp/fan), then PDH (utilization/VRAM)
             if self.vendor == 'amd':
                 chain = [
+                    ("windows-rocm", self._import_backend("rocm_backend", "ROCMBackend")),
                     ("windows-adl", self._import_backend("adl_backend", "ADLBackend")),
                     ("windows-pdh", self._import_backend("pdh_backend", "PDHBackend")),
                     ("windows-powershell", self._import_backend("powershell_backend", "PowerShellBackend")),
