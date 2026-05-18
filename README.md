@@ -41,6 +41,7 @@ Intelligent multi-backend architecture that auto-detects your GPU vendor and sel
 
 No third-party background applications required — the backend uses only native OS tools and your existing AMD driver stack.
 
+<br><br>
 ### 🌐 Universal Prompt Translator
 
 An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning.
@@ -57,12 +58,14 @@ An integrated translation node that converts prompts from **16+ languages** into
 | `tr` | Turkish | `hi` | Hindi |
 | `th` | Thai | `vi` | Vietnamese |
 
+<br><br>
 **Sample Translation:**
 
 | Indonesian Input | Final English Prompt |
 |-----------------|---------------------|
 | `wanita cantik memakai kimono di malam hari` | `beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed` |
 
+<br><br>
 **Presets:**
 
 | Quality | Style | Auto Negative |
@@ -73,6 +76,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 > 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
 
+<br><br>
 **Sample**
 
 <div align="center">
@@ -104,7 +108,8 @@ The HW Monitor integrates directly with the ComfyUI Settings panel. All changes 
 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
-**Theme Sample**
+<br><br>
+### Theme Sample
 <div align="center">
 <img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> 
 <img width="266" height="252" alt="image" src="https://github.com/user-attachments/assets/066e7968-1df3-4cec-b9bf-98f9bda1d06c" />
@@ -112,6 +117,7 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 <img width="269" height="253" alt="image" src="https://github.com/user-attachments/assets/030c8548-f47d-4871-b64a-a18b36d33fea" />
 </div>
 
+<br><br>
 **Keyboard Shortcuts:**
 
 | Action | Shortcut |
@@ -170,7 +176,9 @@ pip install -r BangtrixToolkit/requirements.txt
 ---
 
 <div align="center">
-
+### 💖 [Support This Project]([https://github.com/Anonymzx](https://saweria.co/bangtrix)
+If you find this toolkit helpful and it speeds up your ComfyUI workflow, consider supporting its development!
+  
 ### ❤️ Created by [Anonymzx](https://github.com/Anonymzx)
 
 </div>
