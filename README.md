@@ -88,6 +88,12 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 > 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
 
+<div align="center">
+<img width="570" alt="Workflow" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
+<br><br>
+<img width="900" alt="Workflow detail" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
+</div>
+
 </details>
 
 ---
