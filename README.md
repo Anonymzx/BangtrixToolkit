@@ -41,7 +41,7 @@ Intelligent multi-backend architecture that auto-detects your GPU vendor and sel
 
 No third-party background applications required — the backend uses only native OS tools and your existing AMD driver stack.
 
-<br><br>
+<br>
 ### 🌐 Universal Prompt Translator
 
 An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning.
@@ -58,14 +58,14 @@ An integrated translation node that converts prompts from **16+ languages** into
 | `tr` | Turkish | `hi` | Hindi |
 | `th` | Thai | `vi` | Vietnamese |
 
-<br><br>
+<br>
 **Sample Translation:**
 
 | Indonesian Input | Final English Prompt |
 |-----------------|---------------------|
 | `wanita cantik memakai kimono di malam hari` | `beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed` |
 
-<br><br>
+<br>
 **Presets:**
 
 | Quality | Style | Auto Negative |
@@ -76,7 +76,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 > 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
 
-<br><br>
+<br>
 **Sample**
 
 <div align="center">
