@@ -90,13 +90,28 @@ class UniversalMonitor:
         chain = []
 
         if self.os_type == 'windows':
-            # Try all Windows backends — PDH first (native Task Manager source)
-            chain = [
-                ("windows-pdh", self._import_backend("pdh_backend", "PDHBackend")),
-                ("windows-powershell", self._import_backend("powershell_backend", "PowerShellBackend")),
-                ("windows-nvml", self._import_backend("windows_nvml", "WindowsNVIDIABackend")),
-                ("windows-adl", self._import_backend("adl_backend", "ADLBackend")),
-            ]
+            # For AMD: try ADL first (temp/fan), then PDH (utilization/VRAM)
+            if self.vendor == 'amd':
+                chain = [
+                    ("windows-adl", self._import_backend("adl_backend", "ADLBackend")),
+                    ("windows-pdh", self._import_backend("pdh_backend", "PDHBackend")),
+                    ("windows-powershell", self._import_backend("powershell_backend", "PowerShellBackend")),
+                    ("windows-nvml", self._import_backend("windows_nvml", "WindowsNVIDIABackend")),
+                ]
+            elif self.vendor == 'nvidia':
+                chain = [
+                    ("windows-nvml", self._import_backend("windows_nvml", "WindowsNVIDIABackend")),
+                    ("windows-pdh", self._import_backend("pdh_backend", "PDHBackend")),
+                    ("windows-powershell", self._import_backend("powershell_backend", "PowerShellBackend")),
+                    ("windows-adl", self._import_backend("adl_backend", "ADLBackend")),
+                ]
+            else:
+                chain = [
+                    ("windows-pdh", self._import_backend("pdh_backend", "PDHBackend")),
+                    ("windows-powershell", self._import_backend("powershell_backend", "PowerShellBackend")),
+                    ("windows-nvml", self._import_backend("windows_nvml", "WindowsNVIDIABackend")),
+                    ("windows-adl", self._import_backend("adl_backend", "ADLBackend")),
+                ]
 
         elif self.os_type == 'linux':
             if self.vendor == 'amd':
