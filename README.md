@@ -105,6 +105,7 @@ The HW Monitor integrates directly with the ComfyUI Settings panel. All changes 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
 **Theme Sample**
+<br>
 <img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> <img width="266" height="252" alt="image" src="https://github.com/user-attachments/assets/066e7968-1df3-4cec-b9bf-98f9bda1d06c" /> <img width="268" height="254" alt="image" src="https://github.com/user-attachments/assets/bf4e645f-b83f-41f9-99f5-49adaf63fafa" /> <img width="269" height="253" alt="image" src="https://github.com/user-attachments/assets/030c8548-f47d-4871-b64a-a18b36d33fea" />
 <br>
 
