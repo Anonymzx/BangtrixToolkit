@@ -7,6 +7,7 @@
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Custom_Node-FF6B6B?style=flat-square)](https://github.com/comfyanonymous/ComfyUI)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python)](https://python.org)
 [![License](https://img.shields.io/github/license/Anonymzx/BangtrixToolkit?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/Anonymzx/BangtrixToolkit?style=flat-square)](https://github.com/Anonymzx/BangtrixToolkit/stargazers)
 
 A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay** with native AMD ROCm support, and a **Universal Prompt Translator** node — all in one clean package.
 
@@ -21,6 +22,26 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 ### 🖥️ Advanced HW Monitor
 
 Real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
+
+```
+┌────────────────────────────┐
+│ 🖥️ HW Monitor              │
+├────────────────────────────┤
+│  AMD Radeon RX 7800 XT     │
+│ ┌───────┬──────────┐       │
+│ │GPU    │ VRAM     │       │
+│ │ 1.2%  │1.5/16.4GB│       │
+│ │ █░░░░░│███░░░░░░│       │
+│ ├───────┼──────────┤       │
+│ │ Temp  │ Fan      │       │
+│ │ 45°C  │ 1200 RPM │       │
+│ │ ███░░░│ █░░░░░░░│       │
+│ └───────┴──────────┘       │
+│  ╱ GPU Load History ╲      │
+│ ──────────────────────     │
+│ 🟢 LIVE │ REST 1s          │
+└────────────────────────────┘
+```
 
 ### 🔌 Native AMD ROCm Support
 
@@ -37,7 +58,35 @@ No third-party background applications required — the backend uses only native
 
 ### 🌐 Universal Prompt Translator
 
-An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning. Features quality presets (Normal / High / Ultra), style presets (Anime / Realistic / Cinematic / Fantasy), auto-negative generation, and a built-in translation cache for fast repeated workflows.
+An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning.
+
+| Code | Language | Code | Language |
+|------|----------|------|----------|
+| `auto` | Auto Detect | `en` | English |
+| `id` | Indonesian | `ja` | Japanese |
+| `ko` | Korean | `zh-CN` | Chinese (Simplified) |
+| `zh-TW` | Chinese (Traditional) | `fr` | French |
+| `de` | German | `es` | Spanish |
+| `pt` | Portuguese | `ru` | Russian |
+| `it` | Italian | `ar` | Arabic |
+| `tr` | Turkish | `hi` | Hindi |
+| `th` | Thai | `vi` | Vietnamese |
+
+**Sample Translation:**
+
+| Indonesian Input | Final English Prompt |
+|-----------------|---------------------|
+| `wanita cantik memakai kimono di malam hari` | `beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed` |
+
+**Presets:**
+
+| Quality | Style | Auto Negative |
+|---------|-------|---------------|
+| `normal` — Standard | `none` — No style | `normal` — Basic |
+| `high` — Better details | `anime` · `realistic` · `cinematic` | `strong` — Reduced artifacts |
+| `ultra` — Maximum | `photography` · `product` · `fantasy` · `portrait` | `ultra` — Maximum cleanup |
+
+> 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
 
 </details>
 
@@ -47,7 +96,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 <summary><b>⚙️ Kustomisasi UI & Settings</b> (Klik untuk membuka)</summary>
 <br>
 
-The HW Monitor is fully integrated with the built-in ComfyUI Settings dialog. All changes apply **instantly** — no browser reload required.
+The HW Monitor integrates directly with the ComfyUI Settings panel. All changes apply **instantly** — no browser reload required.
 
 | Setting | Type | Options |
 |---------|------|---------|
@@ -57,7 +106,16 @@ The HW Monitor is fully integrated with the built-in ComfyUI Settings dialog. Al
 | **🔲 Background Opacity** | Slider | 0.1 – 1.0 (step 0.05) |
 | **📦 Compact Mode** | Boolean | Hide sparkline graph for minimal footprint |
 
-Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header, or through the ComfyUI Settings menu.
+Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
+
+**Keyboard Shortcuts:**
+
+| Action | Shortcut |
+|--------|----------|
+| Show / Hide Overlay | `Ctrl + Shift + M` |
+| Minimize Widget | Click `−` button |
+| Open Settings | Click `⚙` button |
+| Reposition Widget | Drag the header bar |
 
 </details>
 
@@ -67,13 +125,23 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 <summary><b>🚀 Cara Instalasi</b> (Klik untuk membuka)</summary>
 <br>
 
+### 🔧 Instalasi Manual
+
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/Anonymzx/BangtrixToolkit.git
 pip install -r BangtrixToolkit/requirements.txt
 ```
 
-> **Restart ComfyUI** after installation. The HW Monitor overlay appears automatically — no node configuration needed.
+### 📥 Via ComfyUI Manager (Direkomendasikan)
+
+1. Buka **ComfyUI Manager** di dalam ComfyUI
+2. Pilih tab **Custom Nodes Manager**
+3. Cari **BangtrixToolkit** di kolom pencarian
+4. Klik **Install**
+5. **Restart** ComfyUI
+
+> Setelah restart, HW Monitor overlay akan muncul otomatis — tidak perlu konfigurasi node tambahan.
 
 </details>
 
