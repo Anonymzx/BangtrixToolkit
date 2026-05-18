@@ -28,24 +28,25 @@ class HardwareStats:
     error_message: Optional[str] = None
 
     def to_dict(self) -> dict:
+        """Convert to dict with explicit Python native types for safe JSON."""
         return {
-            'gpu_id': self.gpu_id,
-            'gpu_name': self.gpu_name,
-            'vendor': self.vendor,
-            'driver': self.driver,
-            'is_apu': self.is_apu,
-            'utilization_gpu': round(self.utilization_gpu, 1),
-            'utilization_memory': round(self.utilization_memory, 1),
-            'memory_total': self.memory_total,
-            'memory_used': self.memory_used,
-            'memory_free': self.memory_free,
-            'memory_shared': self.memory_shared,
-            'temperature': round(self.temperature, 1),
-            'fan_speed': self.fan_speed,
-            'core_clock': self.core_clock,
-            'memory_clock': self.memory_clock,
-            'power_draw': round(self.power_draw, 1),
-            'is_available': self.is_available,
+            'gpu_id': int(self.gpu_id),
+            'gpu_name': str(self.gpu_name or ""),
+            'vendor': str(self.vendor or "unknown"),
+            'driver': str(self.driver or ""),
+            'is_apu': bool(self.is_apu),
+            'utilization_gpu': round(float(self.utilization_gpu or 0), 1),
+            'utilization_memory': round(float(self.utilization_memory or 0), 1),
+            'memory_total': int(self.memory_total or 0),
+            'memory_used': int(self.memory_used or 0),
+            'memory_free': int(self.memory_free or 0),
+            'memory_shared': int(self.memory_shared or 0),
+            'temperature': round(float(self.temperature or 0), 1),
+            'fan_speed': int(self.fan_speed or 0),
+            'core_clock': int(self.core_clock or 0),
+            'memory_clock': int(self.memory_clock or 0),
+            'power_draw': round(float(self.power_draw or 0), 1),
+            'is_available': bool(self.is_available),
         }
 
     def to_mb(self, value: int) -> float:

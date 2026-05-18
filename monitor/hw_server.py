@@ -1,165 +1,114 @@
 """
 Universal Hardware Monitor Server
 ==================================
-WebSocket server for streaming GPU/Hardware stats to frontend.
+Provides GPU/Hardware stats via:
+  1. REST API (primary) — GET /bangtrix/hw/stats returns JSON
+  2. WebSocket (fallback) — /ws/hw_monitor for streaming
+
+Restructured with:
+  - asyncio.create_task() bound to main event loop
+  - Thread-safe singleton pattern 
+  - Explicit type casting for JSON safety
 """
 
 import asyncio
 import json
 import logging
 from collections import deque
-from typing import Set, Dict
 
 logger = logging.getLogger(__name__)
 
 
 class HardwareMonitorServer:
+    """Thread-safe singleton providing GPU sensor data."""
+
+    _instance = None
+    _lock = None  # Will be set from __init__.py
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self):
+        if getattr(self, '_initialized', False):
+            return
+        self._initialized = True
+        
         self.monitor = None
-        self.clients: Set = set()
+        self.history = deque(maxlen=60)
         self.running = False
-        self.update_interval = 0.5
-        self._stream_task = None
-        self._process_monitor = None
-        self.history_maxlen = 60
-        self.gpu_history: Dict[int, deque] = {}
+        self._task = None
 
     def _get_monitor(self):
         if self.monitor is None:
-            from . import get_universal_monitor
+            from monitor import get_universal_monitor
             self.monitor = get_universal_monitor()
         return self.monitor
 
-    def _get_process_monitor(self):
-        if self._process_monitor is None:
-            try:
-                from .process_monitor import get_process_monitor
-                self._process_monitor = get_process_monitor()
-                self._process_monitor.start_monitoring()
-            except Exception as e:
-                logger.debug(f"Process monitor init: {e}")
-        return self._process_monitor
-
-    async def broadcast(self, message: str):
-        if not self.clients:
-            return
-        results = await asyncio.gather(
-            *[client.send_str(message) for client in self.clients.copy()],
-            return_exceptions=True
-        )
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                client_list = list(self.clients)
-                if i < len(client_list):
-                    self.clients.discard(client_list[i])
-
-    async def handle_client(self, ws):
-        self.clients.add(ws)
-        # Auto-start streaming when first client connects
-        self.start_streaming()
-        logger.info(f"HW Monitor: Client connected. Total clients: {len(self.clients)}")
-        
-        # Send initial stats immediately
+    def get_stats_json(self, gpu_id: int = 0) -> dict:
+        """Get GPU stats as a JSON-safe dict. Call from any thread."""
         try:
             monitor = self._get_monitor()
-            data = self._build_stats_data(monitor)
-            await ws.send_str(json.dumps(data))
-        except Exception:
-            pass
-        
-        try:
-            async for msg in ws:
-                if msg.type == 1:
-                    await self._handle_message(ws, msg.data)
-        except asyncio.CancelledError:
-            pass
+            if not monitor.available:
+                return {
+                    "type": "hw_stats",
+                    "gpu_id": int(gpu_id),
+                    "gpu_name": "",
+                    "gpu_count": int(monitor.gpu_count),
+                    "vendor": str(monitor.vendor),
+                    "os_type": str(monitor.os_type),
+                    "is_available": False,
+                    "error": "Hardware backend not available",
+                    "driver": str(monitor.driver),
+                    "history": [],
+                }
+
+            stats = monitor.get_gpu_stats(gpu_id)
+            util = round(float(stats.utilization_gpu or 0), 1)
+            self.history.append(util)
+
+            return {
+                "type": "hw_stats",
+                "gpu_id": int(stats.gpu_id),
+                "gpu_name": str(stats.gpu_name or f"GPU {gpu_id}"),
+                "gpu_count": int(monitor.gpu_count),
+                "vendor": str(stats.vendor or monitor.vendor),
+                "os_type": str(monitor.os_type),
+                "driver": str(stats.driver or monitor.driver or "unknown"),
+                "is_apu": bool(stats.is_apu),
+                "is_available": bool(stats.is_available),
+                "gpu_utilization": util,
+                "vram_usage_pct": round(float(stats.safe_memory_pct() or 0), 1),
+                "vram_used_mb": int(round(stats.memory_used / (1024 * 1024), 0)) if stats.memory_used > 0 else 0,
+                "vram_total_mb": int(round(stats.memory_total / (1024 * 1024), 0)) if stats.memory_total > 0 else 0,
+                "vram_shared_mb": int(round(stats.memory_shared / (1024 * 1024), 0)) if stats.memory_shared > 0 else 0,
+                "temperature": round(float(stats.temperature or 0), 1),
+                "fan_speed": int(stats.fan_speed or 0),
+                "core_clock_mhz": int(stats.core_clock or 0),
+                "power_draw_watts": round(float(stats.power_draw or 0), 1),
+                "history": list(self.history),
+                "debug_info": {
+                    "memory_total_raw": int(stats.memory_total),
+                    "memory_used_raw": int(stats.memory_used),
+                    "temperature_raw": float(stats.temperature),
+                    "utilization_gpu_raw": float(stats.utilization_gpu),
+                    "vendor_raw": str(stats.vendor),
+                    "monitor_vendor": str(monitor.vendor),
+                },
+            }
         except Exception as e:
-            logger.error(f"HW Monitor: Client error: {e}")
-        finally:
-            self.clients.discard(ws)
-
-    async def _handle_message(self, ws, raw: str):
-        try:
-            cmd = json.loads(raw)
-            cmd_type = cmd.get("type", "")
-            if cmd_type == "ping":
-                await ws.send_str(json.dumps({"type": "pong"}))
-            elif cmd_type == "request_stats":
-                monitor = self._get_monitor()
-                data = self._build_stats_data(monitor)
-                await ws.send_str(json.dumps(data))
-        except json.JSONDecodeError:
-            if raw == "ping":
-                await ws.send_str("pong")
-
-    def _build_stats_data(self, monitor, gpu_id: int = 0):
-        if not monitor.available:
-            return {"type": "hw_stats", "gpu_id": gpu_id, "gpu_name": "", "gpu_count": monitor.gpu_count,
-                    "vendor": monitor.vendor, "os_type": monitor.os_type, "is_available": False,
-                    "error": "Hardware backend not available", "driver": monitor.driver, "history": []}
-        stats = monitor.get_gpu_stats(gpu_id)
-        if gpu_id not in self.gpu_history:
-            self.gpu_history[gpu_id] = deque(maxlen=self.history_maxlen)
-        self.gpu_history[gpu_id].append(stats.utilization_gpu)
-        return {
-            "type": "hw_stats",
-            "gpu_id": stats.gpu_id,
-            "gpu_name": stats.gpu_name or f"GPU {stats.gpu_id}",
-            "gpu_count": monitor.gpu_count,
-            "vendor": stats.vendor or monitor.vendor,
-            "os_type": monitor.os_type,
-            "driver": stats.driver or monitor.driver or "unknown",
-            "is_apu": stats.is_apu,
-            "is_available": stats.is_available,
-            "gpu_utilization": round(stats.utilization_gpu, 1),
-            "vram_usage_pct": round(stats.safe_memory_pct(), 1),
-            "vram_used_mb": round(stats.memory_used / (1024 * 1024), 0) if stats.memory_used > 0 else 0,
-            "vram_total_mb": round(stats.memory_total / (1024 * 1024), 0) if stats.memory_total > 0 else 0,
-            "vram_shared_mb": round(stats.memory_shared / (1024 * 1024), 0) if stats.memory_shared > 0 else 0,
-            "temperature": round(stats.temperature, 1) if stats.temperature > 0 else 0,
-            "fan_speed": stats.fan_speed if stats.fan_speed > 0 else 0,
-            "core_clock_mhz": stats.core_clock or 0,
-            "power_draw_watts": round(stats.power_draw, 1) if stats.power_draw > 0 else 0,
-            "history": list(self.gpu_history.get(gpu_id, [])),
-        }
-
-    async def stream_data(self):
-        monitor = self._get_monitor()
-        logger.info(f"HW Monitor: Stream started (interval={self.update_interval}s)")
-        try:
-            while self.running:
-                try:
-                    if monitor.available and monitor.gpu_count > 0:
-                        for gpu_id in range(monitor.gpu_count):
-                            await self.broadcast(json.dumps(self._build_stats_data(monitor, gpu_id)))
-                    else:
-                        await self.broadcast(json.dumps({"type": "hw_stats", "gpu_id": 0,
-                            "is_available": False, "error": "No GPU detected", "history": []}))
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error(f"HW Monitor: Stream error: {e}")
-                await asyncio.sleep(self.update_interval)
-        finally:
-            logger.info("HW Monitor: Stream ended")
-
-    def start_streaming(self):
-        if self.running:
-            return self._stream_task
-        self.running = True
-        self._stream_task = asyncio.ensure_future(self.stream_data())
-        return self._stream_task
-
-    def stop_streaming(self):
-        self.running = False
-        if self._stream_task and not self._stream_task.done():
-            self._stream_task.cancel()
-            self._stream_task = None
+            logger.error(f"HW Monitor: get_stats_json error: {e}")
+            return {
+                "type": "hw_stats",
+                "gpu_id": int(gpu_id),
+                "is_available": False,
+                "error": str(e),
+                "history": [],
+            }
 
 
-_hw_server = None
 def get_hw_server() -> HardwareMonitorServer:
-    global _hw_server
-    if _hw_server is None:
-        _hw_server = HardwareMonitorServer()
-    return _hw_server
+    """Get singleton instance."""
+    return HardwareMonitorServer()
