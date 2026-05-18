@@ -176,7 +176,7 @@ pip install -r BangtrixToolkit/requirements.txt
 ---
 
 <div align="center">
-### 💖 [Support This Project](https://github.com/Anonymzx](https://saweria.co/bangtrix)
+### 💖 [Support This Project](https://saweria.co/bangtrix)
 If you find this toolkit helpful and it speeds up your ComfyUI workflow, consider supporting its development!
   
 ### ❤️ Created by [Anonymzx](https://github.com/Anonymzx)
