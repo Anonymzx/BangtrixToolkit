@@ -364,19 +364,21 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
                 None, None, "GPU Engine", win32pdh.PERF_DETAIL_WIZARD)
             if not instance_names:
                 return None
-            target = None
-            for inst in instance_names:
-                if 'engtype_3D' in inst:
-                    target = inst
-                    break
-            if not target:
-                target = instance_names[0]
-            path = "\\GPU Engine(" + target + ")\\Utilization Percentage"
+            # Collect ALL engtype_3D instances for phys_0 (primary GPU)
+            targets = [inst for inst in instance_names 
+                       if 'engtype_3D' in inst and 'phys_0' in inst]
+            if not targets:
+                targets = [inst for inst in instance_names if 'engtype_3D' in inst]
+            if not targets:
+                targets = instance_names[:1]
+            # Use the first matching counter
+            test_path = "\\GPU Engine(" + targets[0] + ")\\Utilization Percentage"
             q = win32pdh.OpenQuery()
-            win32pdh.AddCounter(q, path)
+            win32pdh.AddCounter(q, test_path)
             win32pdh.CollectQueryData(q)
             win32pdh.CloseQuery(q)
-            return path
+            logger.debug(f"PDH: util counter: {targets[0]}")
+            return test_path
         except Exception as e:
             logger.debug(f"PDH util detect: {e}")
         return None

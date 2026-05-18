@@ -2,13 +2,11 @@
 Universal Hardware Monitor Server
 ==================================
 Provides GPU/Hardware stats via:
-  1. REST API (primary) — GET /bangtrix/hw/stats returns JSON
-  2. WebSocket (fallback) — /ws/hw_monitor for streaming
+  1. REST API (primary) -- GET /bangtrix/hw/stats returns JSON
+  2. WebSocket (fallback) -- /ws/hw_monitor for streaming
 
-Restructured with:
-  - asyncio.create_task() bound to main event loop
-  - Thread-safe singleton pattern 
-  - Explicit type casting for JSON safety
+Also tries AMD temperature reader (wmic/PowerShell/thermal zone)
+when backend returns 0 for temperature.
 """
 
 import asyncio
@@ -23,7 +21,6 @@ class HardwareMonitorServer:
     """Thread-safe singleton providing GPU sensor data."""
 
     _instance = None
-    _lock = None  # Will be set from __init__.py
 
     def __new__(cls):
         if cls._instance is None:
@@ -35,7 +32,7 @@ class HardwareMonitorServer:
         if getattr(self, '_initialized', False):
             return
         self._initialized = True
-        
+
         self.monitor = None
         self.history = deque(maxlen=60)
         self.running = False
@@ -46,6 +43,14 @@ class HardwareMonitorServer:
             from monitor import get_universal_monitor
             self.monitor = get_universal_monitor()
         return self.monitor
+
+    def _read_temp(self) -> tuple:
+        """Try to read temperature from AMD temp reader as fallback."""
+        try:
+            from monitor.backends.amd_temp import read_amd_temperature
+            return read_amd_temperature()
+        except Exception:
+            return 0.0, 0
 
     def get_stats_json(self, gpu_id: int = 0) -> dict:
         """Get GPU stats as a JSON-safe dict. Call from any thread."""
@@ -69,6 +74,20 @@ class HardwareMonitorServer:
             util = round(float(stats.utilization_gpu or 0), 1)
             self.history.append(util)
 
+            temp = round(float(stats.temperature or 0), 1)
+            fan = int(stats.fan_speed or 0)
+
+            # If PDH returned 0 temp, try AMD temp reader
+            if temp == 0 or fan == 0:
+                try:
+                    at, af = self._read_temp()
+                    if temp == 0 and at > 0:
+                        temp = round(float(at), 1)
+                    if fan == 0 and af > 0:
+                        fan = int(af)
+                except Exception:
+                    pass
+
             return {
                 "type": "hw_stats",
                 "gpu_id": int(stats.gpu_id),
@@ -84,19 +103,11 @@ class HardwareMonitorServer:
                 "vram_used_mb": int(round(stats.memory_used / (1024 * 1024), 0)) if stats.memory_used > 0 else 0,
                 "vram_total_mb": int(round(stats.memory_total / (1024 * 1024), 0)) if stats.memory_total > 0 else 0,
                 "vram_shared_mb": int(round(stats.memory_shared / (1024 * 1024), 0)) if stats.memory_shared > 0 else 0,
-                "temperature": round(float(stats.temperature or 0), 1),
-                "fan_speed": int(stats.fan_speed or 0),
+                "temperature": temp,
+                "fan_speed": fan,
                 "core_clock_mhz": int(stats.core_clock or 0),
                 "power_draw_watts": round(float(stats.power_draw or 0), 1),
                 "history": list(self.history),
-                "debug_info": {
-                    "memory_total_raw": int(stats.memory_total),
-                    "memory_used_raw": int(stats.memory_used),
-                    "temperature_raw": float(stats.temperature),
-                    "utilization_gpu_raw": float(stats.utilization_gpu),
-                    "vendor_raw": str(stats.vendor),
-                    "monitor_vendor": str(monitor.vendor),
-                },
             }
         except Exception as e:
             logger.error(f"HW Monitor: get_stats_json error: {e}")

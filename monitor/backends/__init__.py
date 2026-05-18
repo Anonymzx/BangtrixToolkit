@@ -36,12 +36,14 @@ from .linux_generic import LinuxGenericBackend
 
 # Universal fallback
 from .fallback import FallbackBackend
+from .amd_smi_backend import AMDSensorBackend
 
 __all__ = [
     "MonitorBackend",
     "HardwareStats",
     "AMDGPUStats",
     "PDHBackend",
+    "AMDSensorBackend",
     "PowerShellBackend",
     "ADLBackend",
     "WindowsNVIDIABackend",
