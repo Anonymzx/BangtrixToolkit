@@ -42,6 +42,7 @@ Intelligent multi-backend architecture that auto-detects your GPU vendor and sel
 No third-party background applications required — the backend uses only native OS tools and your existing AMD driver stack.
 
 <br>
+
 # 🌐 Universal Prompt Translator
 
 An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning.
@@ -59,6 +60,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 | `th` | Thai | `vi` | Vietnamese |
 
 <br>
+
 **Sample Translation**
 
 | Indonesian Input | Final English Prompt |
@@ -66,6 +68,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 | `wanita cantik memakai kimono di malam hari` | `beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed` |
 
 <br>
+
 **Presets**
 
 | Quality | Style | Auto Negative |
@@ -77,6 +80,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 > 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
 
 <br>
+
 **Sample**
 
 <div align="center">
@@ -109,6 +113,7 @@ The HW Monitor integrates directly with the ComfyUI Settings panel. All changes 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
 <br><br>
+
 # Theme Sample
 <div align="center">
 <img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> 
@@ -118,6 +123,7 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 </div>
 
 <br><br>
+
 **Keyboard Shortcuts:**
 
 | Action | Shortcut |
@@ -176,6 +182,7 @@ pip install -r BangtrixToolkit/requirements.txt
 ---
 
 <div align="center">
+
 ### 💖 Support This Project
 If you find this toolkit helpful and it speeds up your ComfyUI workflow, consider supporting its development!
   
