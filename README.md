@@ -1,3 +1,4 @@
+````markdown
 <div align="center">
 
 # 🚀 BangtrixToolkit
@@ -16,21 +17,24 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 ---
 
 <details open>
-<summary><b>✨ Key Features</b> (Click to Close)</summary>
+<summary><b>✨ Key Features</b> (Click to Collapse)</summary>
 <br>
 
 # 🖥️ Advanced HW Monitor
 
-Real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
+A real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
+
 <br>
+
 <div align="center">
 <img width="264" height="249" alt="image" src="https://github.com/user-attachments/assets/3967ee42-4f6e-40f7-b5fd-e55c21f719a4" />
 </div>
+
 <br>
 
 # 🔌 Native AMD ROCm Support
 
-Intelligent multi-backend architecture that auto-detects your GPU vendor and selects the optimal data source:
+An intelligent multi-backend architecture automatically detects your GPU vendor and selects the optimal data source.
 
 | GPU | Platform | Primary Backend | Fallback |
 |-----|----------|----------------|----------|
@@ -39,7 +43,7 @@ Intelligent multi-backend architecture that auto-detects your GPU vendor and sel
 | **NVIDIA** | Windows / Linux | NVML / `nvidia-smi` | PDH / sysfs |
 | **Intel ARC / iGPU** | Windows / Linux | PDH + sysfs | PowerShell / `hwmon` |
 
-No third-party background applications required — the backend uses only native OS tools and your existing AMD driver stack.
+No third-party background applications are required — the backend relies only on native OS tools and your existing AMD driver stack.
 
 <br>
 
@@ -61,7 +65,7 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 <br>
 
-**Sample Translation**
+## ✨ Sample Translation
 
 | Indonesian Input | Final English Prompt |
 |-----------------|---------------------|
@@ -69,19 +73,19 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 <br>
 
-**Presets**
+## 🎛️ Presets
 
 | Quality | Style | Auto Negative |
 |---------|-------|---------------|
 | `normal` — Standard | `none` — No style | `normal` — Basic |
-| `high` — Better details | `anime` · `realistic` · `cinematic` | `strong` — Reduced artifacts |
-| `ultra` — Maximum | `photography` · `product` · `fantasy` · `portrait` | `ultra` — Maximum cleanup |
+| `high` — Enhanced details | `anime` · `realistic` · `cinematic` | `strong` — Reduced artifacts |
+| `ultra` — Maximum quality | `photography` · `product` · `fantasy` · `portrait` | `ultra` — Maximum cleanup |
 
-> 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use `anime` preset for anime models · Use `realistic` or `photography` for realism models
+> 💡 **Tips:** Use `show_original` to debug translations · Enable `enable_cache` for faster workflows · Use `ultra` quality for SDXL and Flux · Use the `anime` preset for anime models · Use `realistic` or `photography` for realism-based models
 
 <br>
 
-**Sample**
+## 📸 Sample Workflow
 
 <div align="center">
 <img width="570" alt="Workflow" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
@@ -94,12 +98,15 @@ An integrated translation node that converts prompts from **16+ languages** into
 ---
 
 <details>
-<summary><b>⚙️ Customization UI & Settings</b> (Click to Open)</summary>
+<summary><b>⚙️ Customization UI & Settings</b> (Click to Expand)</summary>
 <br>
 
-The HW Monitor integrates directly with the ComfyUI Settings panel. All changes apply **instantly** — no browser reload required.
+The HW Monitor integrates directly into the ComfyUI Settings panel. All changes are applied **instantly** — no browser reload required.
+
 <br>
+
 <img width="246" height="237" alt="image" src="https://github.com/user-attachments/assets/57bab366-c238-4653-8580-bd5c9cae3a61" />
+
 <br>
 
 | Setting | Type | Options |
@@ -108,13 +115,14 @@ The HW Monitor integrates directly with the ComfyUI Settings panel. All changes 
 | **⏱️ Refresh Rate** | Combo | 500ms · 1s · 2s |
 | **👁️ Show on Startup** | Boolean | On / Off |
 | **🔲 Background Opacity** | Slider | 0.1 – 1.0 (step 0.05) |
-| **📦 Compact Mode** | Boolean | Hide sparkline graph for minimal footprint |
+| **📦 Compact Mode** | Boolean | Hides sparkline graph for minimal footprint |
 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
 <br><br>
 
-# Theme Sample
+# 🎨 Theme Samples
+
 <div align="center">
 <img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> 
 <img width="266" height="252" alt="image" src="https://github.com/user-attachments/assets/066e7968-1df3-4cec-b9bf-98f9bda1d06c" />
@@ -124,7 +132,7 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 
 <br><br>
 
-**Keyboard Shortcuts:**
+## ⌨️ Keyboard Shortcuts
 
 | Action | Shortcut |
 |--------|----------|
@@ -138,54 +146,56 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 ---
 
 <details>
-<summary><b>🚀 Cara Instalasi</b> (Klik untuk membuka)</summary>
+<summary><b>🚀 Installation Guide</b> (Click to Expand)</summary>
 <br>
 
-### 🔧 Instalasi Manual
+## 🔧 Manual Installation
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/Anonymzx/BangtrixToolkit.git
 pip install -r BangtrixToolkit/requirements.txt
-```
+````
 
-### 📥 Via ComfyUI Manager (Direkomendasikan)
+## 📥 Via ComfyUI Manager (Recommended)
 
-1. Buka **ComfyUI Manager** di dalam ComfyUI
-2. Pilih tab **Custom Nodes Manager**
-3. Cari **BangtrixToolkit** di kolom pencarian
-4. Klik **Install**
+1. Open **ComfyUI Manager** inside ComfyUI
+2. Go to the **Custom Nodes Manager** tab
+3. Search for **BangtrixToolkit**
+4. Click **Install**
 5. **Restart** ComfyUI
 
-> Setelah restart, HW Monitor overlay akan muncul otomatis — tidak perlu konfigurasi node tambahan.
+> After restarting, the HW Monitor overlay will appear automatically — no additional node configuration is required.
 
 </details>
 
 ---
 
 <details>
-<summary><b>⚠️ Catatan Khusus Pengguna AMD</b> (Klik untuk membuka)</summary>
+<summary><b>⚠️ Important Notes for AMD Users</b> (Click to Expand)</summary>
 <br>
 
-> **Untuk pengguna GPU AMD — khususnya arsitektur RDNA3 (seri RX 7000 ke atas):**
+> **For AMD GPU users — especially RDNA3 architecture (RX 7000 series and newer):**
 >
-> Windows membatasi akses sensor **suhu (temperature)** dan **kipas (fan)** pada GPU AMD modern. Agar HW Monitor dapat membaca nilai **TEMP** dan **FAN** secara sempurna tanpa aplikasi pihak ketiga, **sangat disarankan untuk menginstal AMD ROCm / HIP SDK**.
+> Windows restricts access to **temperature** and **fan speed** sensors on modern AMD GPUs. To allow the HW Monitor to read **TEMP** and **FAN** values correctly without requiring third-party applications, installing the **AMD ROCm / HIP SDK** is highly recommended.
 >
 > 📥 Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/rocm.html)
 >
-> Setelah instalasi, backend akan otomatis mendeteksi `hipInfo.exe` melalui environment variable `HIP_PATH` dan menggabungkannya dengan live data dari Windows PDH counters.
+> After installation, the backend will automatically detect `hipInfo.exe` through the `HIP_PATH` environment variable and combine it with live Windows PDH counter data.
 >
-> **Tanpa ROCm**, sistem akan otomatis menggunakan fallback Windows — tetap menampilkan **GPU Load** dan **VRAM Usage**, namun suhu dan kipas akan menampilkan `N/A`.
+> **Without ROCm**, the system will automatically switch to the Windows fallback backend — GPU Load and VRAM Usage will still function normally, but Temperature and Fan Speed may display as `N/A`.
 
 </details>
 
 ---
 
-<div align="Left">
+<div align="left">
 
-### 💖 Support This Project
-If you find this toolkit helpful and it speeds up your ComfyUI workflow, consider supporting its development!
-  
+### 💖 [Support This Project]()
+
+If you find this toolkit useful and it improves your ComfyUI workflow, consider supporting its development!
+
 ### ❤️ Created by [Anonymzx](https://github.com/Anonymzx)
 
 </div>
+```
