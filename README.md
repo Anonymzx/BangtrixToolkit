@@ -19,7 +19,7 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 <summary><b>✨ Key Features</b> (Click to Close)</summary>
 <br>
 
-### 🖥️ Advanced HW Monitor
+# 🖥️ Advanced HW Monitor
 
 Real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
 <br>
@@ -28,7 +28,7 @@ Real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **
 </div>
 <br>
 
-### 🔌 Native AMD ROCm Support
+# 🔌 Native AMD ROCm Support
 
 Intelligent multi-backend architecture that auto-detects your GPU vendor and selects the optimal data source:
 
@@ -42,7 +42,7 @@ Intelligent multi-backend architecture that auto-detects your GPU vendor and sel
 No third-party background applications required — the backend uses only native OS tools and your existing AMD driver stack.
 
 <br>
-### 🌐 Universal Prompt Translator
+# 🌐 Universal Prompt Translator
 
 An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning.
 
@@ -59,14 +59,14 @@ An integrated translation node that converts prompts from **16+ languages** into
 | `th` | Thai | `vi` | Vietnamese |
 
 <br>
-**Sample Translation:**
+**Sample Translation**
 
 | Indonesian Input | Final English Prompt |
 |-----------------|---------------------|
 | `wanita cantik memakai kimono di malam hari` | `beautiful woman wearing kimono at night, cinematic lighting, high quality, detailed` |
 
 <br>
-**Presets:**
+**Presets**
 
 | Quality | Style | Auto Negative |
 |---------|-------|---------------|
@@ -109,7 +109,7 @@ The HW Monitor integrates directly with the ComfyUI Settings panel. All changes 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
 <br><br>
-### Theme Sample
+# Theme Sample
 <div align="center">
 <img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> 
 <img width="266" height="252" alt="image" src="https://github.com/user-attachments/assets/066e7968-1df3-4cec-b9bf-98f9bda1d06c" />
