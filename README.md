@@ -15,7 +15,7 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 
 ---
 
-<details open>
+<details>
 <summary><b>✨ Key Features</b> (Click to Collapse)</summary>
 <br>
 
@@ -152,48 +152,35 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/Anonymzx/BangtrixToolkit.git
+git clone [https://github.com/Anonymzx/BangtrixToolkit.git](https://github.com/Anonymzx/BangtrixToolkit.git)
 pip install -r BangtrixToolkit/requirements.txt
-````
 
+```
 ## 📥 Via ComfyUI Manager (Recommended)
-
-1. Open **ComfyUI Manager** inside ComfyUI
-2. Go to the **Custom Nodes Manager** tab
-3. Search for **BangtrixToolkit**
-4. Click **Install**
-5. **Restart** ComfyUI
-
+ 1. Open **ComfyUI Manager** inside ComfyUI
+ 2. Go to the **Custom Nodes Manager** tab
+ 3. Search for **BangtrixToolkit**
+ 4. Click **Install**
+ 5. **Restart** ComfyUI
 > After restarting, the HW Monitor overlay will appear automatically — no additional node configuration is required.
-
+> 
 </details>
-
----
-
 <details>
 <summary><b>⚠️ Important Notes for AMD Users</b> (Click to Expand)</summary>
-<br>
+
 
 > **For AMD GPU users — especially RDNA3 architecture (RX 7000 series and newer):**
->
 > Windows restricts access to **temperature** and **fan speed** sensors on modern AMD GPUs. To allow the HW Monitor to read **TEMP** and **FAN** values correctly without requiring third-party applications, installing the **AMD ROCm / HIP SDK** is highly recommended.
->
-> 📥 Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)
->
-> After installation, the backend will automatically detect `hipInfo.exe` through the `HIP_PATH` environment variable and combine it with live Windows PDH counter data.
->
-> **Without ROCm**, the system will automatically switch to the Windows fallback backend — GPU Load and VRAM Usage will still function normally, but Temperature and Fan Speed may display as `N/A`.
-
+> 📥 Download: AMD ROCm HIP SDK
+> After installation, the backend will automatically detect hipInfo.exe through the HIP_PATH environment variable and combine it with live Windows PDH counter data.
+> **Without ROCm**, the system will automatically switch to the Windows fallback backend — GPU Load and VRAM Usage will still function normally, but Temperature and Fan Speed may display as N/A.
+> 🧪 **Tested explicitly on:** **AMD Radeon™ RX 7800 XT**
+> 🚨 **Current RDNA3 Limitation:** Please note that as of the current drivers, RDNA3 still does not fully support thermal extraction via amd-smi through ROCm natively on Windows. For now, you will reliably get **GPU Name**, **GPU Load**, and **VRAM Usage**, but thermal sensors (Temp/Fan) might still output N/A.
+> *Rest assured, this toolkit will be updated immediately once AMD releases a patch or driver update that resolves this native API limitation!*
+> 
 </details>
-
----
-
 <div align="left">
-
-### 💖 [Support This Project](https://trakteer.id/anonymzx)
-
+### 💖 Support This Project
 If you find this toolkit useful and it improves your ComfyUI workflow, consider supporting its development!
-
-### ❤️ Created by [Anonymzx](https://github.com/Anonymzx)
-
+### ❤️ Created by Anonymzx
 </div>
