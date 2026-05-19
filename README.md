@@ -1,4 +1,3 @@
-````markdown
 <div align="center">
 
 # 🚀 BangtrixToolkit
@@ -198,4 +197,3 @@ If you find this toolkit useful and it improves your ComfyUI workflow, consider 
 ### ❤️ Created by [Anonymzx](https://github.com/Anonymzx)
 
 </div>
-```
