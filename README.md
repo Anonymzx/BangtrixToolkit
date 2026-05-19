@@ -190,7 +190,7 @@ pip install -r BangtrixToolkit/requirements.txt
 
 <div align="left">
 
-### 💖 [Support This Project](buymeacoffee.com/anonymzx)
+### 💖 [Support This Project](https://trakteer.id/anonymzx)
 
 If you find this toolkit useful and it improves your ComfyUI workflow, consider supporting its development!
 
