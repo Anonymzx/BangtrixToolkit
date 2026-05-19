@@ -170,17 +170,26 @@ pip install -r BangtrixToolkit/requirements.txt
 
 
 > **For AMD GPU users — especially RDNA3 architecture (RX 7000 series and newer):**
+> 
 > Windows restricts access to **temperature** and **fan speed** sensors on modern AMD GPUs. To allow the HW Monitor to read **TEMP** and **FAN** values correctly without requiring third-party applications, installing the **AMD ROCm / HIP SDK** is highly recommended.
-> 📥 Download: AMD ROCm HIP SDK
+> 
+>📥 Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)
+> 
 > After installation, the backend will automatically detect hipInfo.exe through the HIP_PATH environment variable and combine it with live Windows PDH counter data.
+> 
 > **Without ROCm**, the system will automatically switch to the Windows fallback backend — GPU Load and VRAM Usage will still function normally, but Temperature and Fan Speed may display as N/A.
+> 
 > 🧪 **Tested explicitly on:** **AMD Radeon™ RX 7800 XT**
+> 
 > 🚨 **Current RDNA3 Limitation:** Please note that as of the current drivers, RDNA3 still does not fully support thermal extraction via amd-smi through ROCm natively on Windows. For now, you will reliably get **GPU Name**, **GPU Load**, and **VRAM Usage**, but thermal sensors (Temp/Fan) might still output N/A.
+> 
 > *Rest assured, this toolkit will be updated immediately once AMD releases a patch or driver update that resolves this native API limitation!*
 > 
 </details>
 <div align="left">
-### 💖 Support This Project
+
+### 💖 [Support This Project](https://trakteer.id/anonymzx)
+
 If you find this toolkit useful and it improves your ComfyUI workflow, consider supporting its development!
-### ❤️ Created by Anonymzx
-</div>
+
+### ❤️ Created by [Anonymzx](https://github.com/Anonymzx)
