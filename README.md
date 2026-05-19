@@ -178,7 +178,7 @@ pip install -r BangtrixToolkit/requirements.txt
 >
 > Windows restricts access to **temperature** and **fan speed** sensors on modern AMD GPUs. To allow the HW Monitor to read **TEMP** and **FAN** values correctly without requiring third-party applications, installing the **AMD ROCm / HIP SDK** is highly recommended.
 >
-> 📥 Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/rocm.html)
+> 📥 Download: [AMD ROCm HIP SDK](https://www.amd.com/en/developer/resources/rocm-hub/hip-sdk.html)
 >
 > After installation, the backend will automatically detect `hipInfo.exe` through the `HIP_PATH` environment variable and combine it with live Windows PDH counter data.
 >
@@ -190,7 +190,7 @@ pip install -r BangtrixToolkit/requirements.txt
 
 <div align="left">
 
-### 💖 [Support This Project]()
+### 💖 [Support This Project](buymeacoffee.com/anonymzx)
 
 If you find this toolkit useful and it improves your ComfyUI workflow, consider supporting its development!
 
