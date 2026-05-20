@@ -420,6 +420,8 @@
             '.hw-sparkline{width:100%;height:36px;border-radius:4px}' +
             '.hw-status-bar{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;font-size:9px}' +
             '.hw-status.live{animation:livePulse 1.5s infinite}' +
+            '.hw-status.loading{color:#ffaa00;animation:loadingPulse 1s infinite}' +
+            '@keyframes loadingPulse{0%,100%{opacity:1}50%{opacity:0.4}}' +
             '@keyframes livePulse{0%,100%{color:inherit}50%{opacity:0.5}}';
         document.head.appendChild(baseCss);
         document.body.appendChild(widget);
@@ -623,11 +625,25 @@
         fetch('/bangtrix/hw/stats')
             .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(function(data) {
-                pollRetries = 0;
-                if (data && data.type === 'hw_stats') {
-                    setStatus("\u25CF LIVE", "live");
-                    setMethod("REST " + (curRefreshMs / 1000) + "s");
-                    updateDisplay(data);
+                try {
+                    pollRetries = 0;
+                    if (data && data.type === 'hw_stats') {
+                        if (data.is_loading) {
+                            setStatus("\u25A0 DETECTING", "loading");
+                            setMethod("Initializing...");
+                            updateDisplay(data);
+                        } else if (data.is_available) {
+                            setStatus("\u25CF LIVE", "live");
+                            setMethod("REST " + (curRefreshMs / 1000) + "s");
+                            updateDisplay(data);
+                        } else {
+                            setStatus(data.gpu_name || "Offline", "err");
+                            setMethod(data.driver || "");
+                            updateDisplay(data);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Bangtrix HW Monitor UI Error:", error);
                 }
             })
             .catch(function(err) {
@@ -667,10 +683,25 @@
             if (d.os_type) parts.push(d.os_type);
             el.textContent = parts.join(' | ') || '-';
         }
+        // CRITICAL: When is_loading is true, DO NOT enter the error branch.
+        // Just render placeholder values. The status/method is already
+        // set by fetchStats -> setStatus("■ DETECTING", "loading").
+        if (d.is_loading) {
+            setUtil('hw-gpu-util', '--', 0); setUtil('hw-vram', '--', 0);
+            setUtil('hw-temp', '--', 0); setUtil('hw-fan', '--', 0);
+            setBar('hw-gpu-bar', 0); setBar('hw-vram-bar', 0); setBar('hw-temp-bar', 0); setBar('hw-fan-bar', 0);
+            // Do NOT overwrite status — fetchStats already set it.
+            // Do NOT return — let the stat labels update so the overlay shows something.
+            // But skip the rest of the real stats rendering.
+            if (!curCompactMode && d.history && d.history.length > 0) drawSparkline(d.history);
+            return;
+        }
         if (!d.is_available) {
             setUtil('hw-gpu-util', d.error || '--', 0); setUtil('hw-vram', d.error || '--', 0);
             setUtil('hw-temp', d.error || '--', 0); setUtil('hw-fan', d.error || '--', 0);
             setBar('hw-gpu-bar', 0); setBar('hw-vram-bar', 0); setBar('hw-temp-bar', 0); setBar('hw-fan-bar', 0);
+            // Only overwrite status if it wasn't already set by caller
+            // (caller already set status in fetchStats for unavail case)
             setStatus(d.error || 'Unavailable', 'err');
             return;
         }
@@ -679,12 +710,16 @@
         if (vramLabel) {
             vramLabel.textContent = d.is_apu ? 'GPU MEM' : 'VRAM';
         }
-        var util = d.gpu_utilization || 0;
-        setUtil('hw-gpu-util', Number(util).toFixed(1) + '%', util);
+        var util = Number(d.gpu_utilization) || 0;
+        setUtil('hw-gpu-util', util.toFixed(1) + '%', util);
         setBar('hw-gpu-bar', util);
-        var vramUsed = d.vram_used_mb || 0, vramTotal = d.vram_total_mb || 0, vramPct = d.vram_usage_pct || 0;
-        if (vramTotal > 0) { setUtil('hw-vram', (vramUsed / 1024).toFixed(2) + ' / ' + (vramTotal / 1024).toFixed(1) + ' GB', vramPct); setBar('hw-vram-bar', vramPct); }
-        else { setUtil('hw-vram', 'N/A', 0); setBar('hw-vram-bar', 0); }
+        var vramUsed = Number(d.vram_used_mb) || 0;
+        var vramTotal = Number(d.vram_total_mb) || 1;  // minimum 1 prevents div/0
+        var vramPct = Number(d.vram_usage_pct) || 0;
+        // Cap pct so bar never exceeds 100%
+        if (vramPct > 100) vramPct = 100;
+        setUtil('hw-vram', (vramUsed / 1024).toFixed(2) + ' / ' + (vramTotal / 1024).toFixed(1) + ' GB', vramPct);
+        setBar('hw-vram-bar', vramPct);
         // OOM Warning: if VRAM >= 90%, color the bar and value red
         var vramBar = $id('hw-vram-bar');
         var vramVal = $id('hw-vram');
@@ -695,10 +730,10 @@
             if (vramBar) vramBar.style.background = '';
             if (vramVal) vramVal.style.color = '';
         }
-        var temp = d.temperature || 0;
-        if (temp > 0) { setUtil('hw-temp', Number(temp).toFixed(1) + '\u00B0C', temp); setBar('hw-temp-bar', Math.min(temp, 100)); }
+        var temp = Number(d.temperature) || 0;
+        if (temp > 0) { setUtil('hw-temp', temp.toFixed(1) + '\u00B0C', temp); setBar('hw-temp-bar', Math.min(temp, 100)); }
         else { setUtil('hw-temp', 'N/A', 0); setBar('hw-temp-bar', 0); }
-        var fan = d.fan_speed || 0;
+        var fan = Number(d.fan_speed) || 0;
         if (fan > 0) { setUtil('hw-fan', fan + '%', fan); setBar('hw-fan-bar', fan); }
         else { setUtil('hw-fan', 'N/A', 0); setBar('hw-fan-bar', 0); }
         var info = d.driver || 'unknown';
@@ -714,7 +749,7 @@
     function setBar(id, pct) { var el = $id(id); if (el) el.style.width = Math.min(100, Math.max(0, pct || 0)) + '%'; }
     function setStatus(text, cls) {
         var el = $id('hw-status'); if (el) { el.textContent = text; el.className = 'hw-status ' + (cls || ''); }
-        if (widget) { var icon = widget.querySelector('.hw-icon'); if (icon) icon.textContent = cls === 'live' ? '\uD83D\uDFE2' : cls === 'err' ? '\uD83D\uDD34' : '\uD83D\uDFE1'; }
+        if (widget) { var icon = widget.querySelector('.hw-icon'); if (icon) icon.textContent = cls === 'live' ? '\uD83D\uDFE2' : cls === 'err' ? '\uD83D\uDD34' : cls === 'loading' ? '\u23F3' : '\uD83D\uDFE1'; }
     }
     function setMethod(text) { var el = $id('hw-method'); if (el) el.textContent = text || ''; }
 

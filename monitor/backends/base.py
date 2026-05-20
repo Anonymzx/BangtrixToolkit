@@ -25,6 +25,7 @@ class HardwareStats:
     memory_clock: int = 0            # MHz
     power_draw: float = 0.0          # Watts
     is_available: bool = True
+    is_loading: bool = False       # True while background init is in progress
     error_message: Optional[str] = None
 
     def to_dict(self) -> dict:

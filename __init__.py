@@ -55,6 +55,35 @@ import sys as _sys
 import os as _os
 from importlib import util as _util
 
+# === BULLETPROOF GLOBAL CACHE FALLBACK ===
+# Declared BEFORE any route or server init. If ANYTHING goes wrong
+# in the hardware server, route handlers will fall back to this.
+# vram_total_mb MUST be >= 1 to prevent JS division-by-zero.
+GLOBAL_HW_CACHE = {
+    "type": "hw_stats",
+    "gpu_id": 0,
+    "gpu_name": "Starting Backend...",
+    "gpu_count": 0,
+    "vendor": "unknown",
+    "os_type": "unknown",
+    "is_available": False,
+    "is_loading": True,
+    "is_apu": True,
+    "error": "Hardware detection in progress",
+    "driver": "",
+    "history": [],
+    "gpu_utilization": 0.0,
+    "vram_usage_pct": 0.0,
+    "vram_used_mb": 0,
+    "vram_total_mb": 1,          # >=1 prevents JS div/0
+    "vram_shared_mb": 0,
+    "temperature": 0.0,
+    "fan_speed": 0,
+    "core_clock_mhz": 0,
+    "power_draw_watts": 0.0,
+    "backend": "fallback",
+}
+
 try:
     import server as _comfy_server
     _ps = _comfy_server.PromptServer
@@ -74,8 +103,13 @@ try:
 
         # --- REST API endpoint (primary) ---
         async def rest_stats_handler(request):
-            data = _hw_srv.get_stats_json()
-            return web.json_response(data)
+            """Serve GPU stats. Always returns valid JSON — try/except is mandatory."""
+            try:
+                data = _hw_srv.get_stats_json()
+                return web.json_response(data)
+            except Exception:
+                # Absolute last-resort fallback
+                return web.json_response(GLOBAL_HW_CACHE)
 
         _app.router.add_get("/bangtrix/hw/stats", rest_stats_handler)
         print("[BANGTRIX] REST API at /bangtrix/hw/stats")
@@ -94,7 +128,10 @@ try:
                         _running = False
                         break
                     except Exception:
-                        pass
+                        try:
+                            await ws.send_json(GLOBAL_HW_CACHE)
+                        except Exception:
+                            pass
                     await asyncio.sleep(1.0)
             except asyncio.CancelledError:
                 pass

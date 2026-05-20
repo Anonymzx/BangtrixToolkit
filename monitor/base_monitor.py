@@ -9,25 +9,13 @@ Architecture:
   2. Backend selection: Try backends in priority order based on OS + vendor
   3. Stats fetching: Thread-safe, non-blocking API
 
-Backend Priority (Windows):
-  - NVIDIA detected -> pynvml -> PDH counters -> PowerShell -> psutil
-  - AMD/Intel detected -> PDH counters -> PowerShell -> LibreHardware -> ADL -> psutil
-  - Unknown -> PDH counters -> PowerShell -> LibreHardware -> psutil
-
-Backend Priority (Linux):
-  - AMD detected -> amdgpu sysfs -> nvidia-smi -> lspci -> psutil
-  - NVIDIA detected -> nvidia-smi -> sysfs hwmon -> psutil
-  - Intel detected -> intel sysfs -> psutil
-  - Unknown -> Linux generic -> psutil
-
-APU/iGPU Safety:
-  - All backends handle APU shared memory gracefully
-  - No division by zero on VRAM
-  - memory_shared field used for APU systems
+IMPORTANT: All heavy initialization (detection, backend trial) runs in
+a background daemon thread to avoid blocking ComfyUI startup.
 """
 
 import logging
 import importlib
+import threading
 from typing import Optional, List
 
 from .detector import detect_hardware
@@ -37,7 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 class UniversalMonitor:
-    """Universal hardware monitor with auto-detection and fallback chain"""
+    """Universal hardware monitor with auto-detection and fallback chain.
+
+    Initialization happens asynchronously in a daemon thread so that
+    this class can be instantiated immediately without blocking.
+    """
 
     def __init__(self):
         self.available = False
@@ -48,15 +40,48 @@ class UniversalMonitor:
         self.has_apu: bool = False
         self.driver: str = ""
         self._backend: Optional[MonitorBackend] = None
-        self._initialize()
+        self._ready = False          # True only after initialize() completes
+        self._init_error: Optional[str] = None
+
+        # Start background initialization in a daemon thread
+        self._init_thread = threading.Thread(target=self._background_init, daemon=True)
+        self._init_thread.start()
+
+    def _background_init(self):
+        """Wrapper that runs _initialize() in a background daemon thread."""
+        try:
+            self._initialize()
+        except Exception as e:
+            self._init_error = str(e)
+            logger.error(f"Universal Monitor: background init failed: {e}")
+        finally:
+            self._ready = True
+
+    def wait_ready(self, timeout: float = 10.0) -> bool:
+        """Block until initialization finishes (for callers that can wait).
+
+        Returns True if initialization completed successfully, False if
+        timeout or failure.
+        """
+        if self._ready:
+            return self.available
+        if self._init_thread and self._init_thread.is_alive():
+            self._init_thread.join(timeout=timeout)
+        return self.available
+
+    @property
+    def ready(self) -> bool:
+        """True once background initialization has completed (success or fail)."""
+        return self._ready
 
     def _initialize(self):
-        """Detect hardware and select best backend"""
+        """Detect hardware and select best backend (runs in background thread)."""
         # Step 1: Detect OS and GPU hardware
         hw_info = detect_hardware()
         self.os_type = hw_info.get('os', 'unknown')
         self.vendor = hw_info.get('primary_vendor', 'unknown')
         self.has_apu = hw_info.get('has_apu', False)
+        gpu_list = hw_info.get('gpus', [])
 
         # Step 2: Try backends in priority order based on OS + vendor
         backends = self._get_backend_chain()
@@ -161,6 +186,16 @@ class UniversalMonitor:
 
     def get_gpu_stats(self, gpu_id: int = 0) -> HardwareStats:
         """Get stats for a specific GPU. Returns safe fallback on error."""
+        # If backend is not ready yet, return a placeholder with "loading" status
+        if not self._ready:
+            return HardwareStats(
+                gpu_id=gpu_id,
+                gpu_name="Detecting Hardware...",
+                vendor=self.vendor,
+                is_available=False,
+                is_loading=True,
+                error_message="Hardware detection in progress",
+            )
         if not self._backend or not self.available:
             return HardwareStats(
                 gpu_id=gpu_id,
@@ -189,7 +224,7 @@ class UniversalMonitor:
 
     def get_all_gpu_stats(self) -> List[HardwareStats]:
         """Get stats for all detected GPUs."""
-        if not self._backend or self.gpu_count == 0:
+        if not self._ready or not self._backend or self.gpu_count == 0:
             return []
         return [self.get_gpu_stats(i) for i in range(self.gpu_count)]
 
@@ -207,11 +242,14 @@ class UniversalMonitor:
 
 # Singleton
 _universal_monitor = None
+_monitor_lock = threading.Lock()
 
 
 def get_universal_monitor() -> UniversalMonitor:
     """Get or create the singleton UniversalMonitor instance."""
     global _universal_monitor
     if _universal_monitor is None:
-        _universal_monitor = UniversalMonitor()
+        with _monitor_lock:
+            if _universal_monitor is None:
+                _universal_monitor = UniversalMonitor()
     return _universal_monitor
