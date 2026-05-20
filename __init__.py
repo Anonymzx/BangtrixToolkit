@@ -11,6 +11,9 @@ import logging
 import sys as _sys
 import os as _os
 
+__version__ = "1.1.0"
+__author__ = "Anonymzx"
+
 # Ensure this package is on sys.path for absolute imports to work
 _pkg_dir = _os.path.dirname(_os.path.realpath(__file__))
 if _pkg_dir not in _sys.path:
