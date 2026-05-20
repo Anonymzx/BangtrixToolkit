@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/github/license/Anonymzx/BangtrixToolkit?style=flat-square)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Anonymzx/BangtrixToolkit?style=flat-square)](https://github.com/Anonymzx/BangtrixToolkit/stargazers)
 
-A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay** with native AMD ROCm support, and a **Universal Prompt Translator** node — all in one clean package.
+A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay** with native AMD/NVIDIA GPU/APU support, and a **Universal Prompt Translator** node — all in one clean package.
 
 </div>
 
