@@ -161,7 +161,7 @@
                 '<div class="hw-vendor-line" id="hw-vendor-line"></div>' +
                 '<div class="hw-grid">' +
                     '<div class="hw-stat"><div class="hw-stat-label">GPU</div><div class="hw-stat-value" id="hw-gpu-util">--</div><div class="hw-bar"><div class="hw-fill" id="hw-gpu-bar"></div></div></div>' +
-                    '<div class="hw-stat"><div class="hw-stat-label">VRAM</div><div class="hw-stat-value" id="hw-vram">--</div><div class="hw-bar"><div class="hw-fill" id="hw-vram-bar"></div></div></div>' +
+                    '<div class="hw-stat"><div class="hw-stat-label" id="hw-vram-label">VRAM</div><div class="hw-stat-value" id="hw-vram">--</div><div class="hw-bar"><div class="hw-fill" id="hw-vram-bar"></div></div></div>' +
                     '<div class="hw-stat"><div class="hw-stat-label">Temp</div><div class="hw-stat-value" id="hw-temp">--</div><div class="hw-bar"><div class="hw-fill hw-temp-fill" id="hw-temp-bar"></div></div></div>' +
                     '<div class="hw-stat"><div class="hw-stat-label">Fan</div><div class="hw-stat-value" id="hw-fan">--</div><div class="hw-bar"><div class="hw-fill" id="hw-fan-bar"></div></div></div>' +
                 '</div>' +
@@ -392,6 +392,11 @@
             setBar('hw-gpu-bar', 0); setBar('hw-vram-bar', 0); setBar('hw-temp-bar', 0); setBar('hw-fan-bar', 0);
             setStatus(d.error || 'Unavailable', 'err');
             return;
+        }
+        // Dynamically update VRAM label for APU vs dedicated GPU
+        var vramLabel = $id('hw-vram-label');
+        if (vramLabel) {
+            vramLabel.textContent = d.is_apu ? 'GPU MEM' : 'VRAM';
         }
         var util = d.gpu_utilization || 0;
         setUtil('hw-gpu-util', Number(util).toFixed(1) + '%', util);

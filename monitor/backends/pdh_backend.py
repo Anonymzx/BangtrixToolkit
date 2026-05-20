@@ -100,10 +100,13 @@ class PDHBackend(MonitorBackend):
     def __init__(self):
         super().__init__()
         self._gpu_name: str = ""
-        self._vram_total: int = 0
+        self._vram_total: int = 0          # Dedicated VRAM in bytes
         self._vram_total_mb: float = 0
+        self._shared_vram_total: int = 0   # Shared system memory portion for APU in bytes
+        self._is_apu: bool = False
         self._util_counter: Optional[PDHCounter] = None
-        self._vram_counter: Optional[PDHCounter] = None
+        self._vram_counter: Optional[PDHCounter] = None      # Dedicated Usage
+        self._vram_shared_counter: Optional[PDHCounter] = None  # Shared Usage (APU only)
         self._adl_available: bool = False
         self._adl_ctx = None
 
@@ -118,6 +121,13 @@ class PDHBackend(MonitorBackend):
 
         try:
             self._detect_gpu_info()
+
+            # APU detection: if dedicated VRAM is under 2GB, it's likely an APU
+            # AMD Radeon(TM) Graphics (APU) has ~512MB UMA buffer
+            self._is_apu = (self._vram_total < 2 * 1024 * 1024 * 1024) and (
+                'radeon' in self._gpu_name.lower() or 'amd' in self._gpu_name.lower()
+            )
+
             util_path = self._detect_utilization_counter()
             if util_path:
                 self._util_counter = PDHCounter(util_path)
@@ -126,6 +136,20 @@ class PDHBackend(MonitorBackend):
             if vram_path:
                 self._vram_counter = PDHCounter(vram_path)
                 self._vram_counter.open()
+
+            # For APU: attempt Shared Usage counter — SAFE fallback if unavailable
+            if self._is_apu:
+                try:
+                    shared_path = self._detect_vram_shared_counter()
+                    if shared_path:
+                        self._vram_shared_counter = PDHCounter(shared_path)
+                        self._vram_shared_counter.open()
+                        self._shared_vram_total = self._get_shared_vram_total()
+                        logger.info(f"PDH: APU shared VRAM = {self._shared_vram_total/(1024*1024):.0f}MB")
+                except Exception as shared_err:
+                    logger.debug(f"PDH: shared VRAM detection skipped ({shared_err}) — using dedicated only")
+                    self._shared_vram_total = 0
+
             self._try_init_adl()
 
             self.gpu_names = [self._gpu_name] if self._gpu_name else ["AMD GPU"]
@@ -135,8 +159,13 @@ class PDHBackend(MonitorBackend):
             # Pre-fetch temperature/fan once at init (non-blocking initial value)
             self._refresh_temp_fan_cache()
 
+            # Log effective total VRAM (dedicated + shared for APU)
+            effective_vram = self._vram_total + self._shared_vram_total
             logger.info(
-                f"PDH: {self.gpu_names[0]} | VRAM={self._vram_total_mb:.0f}MB | "
+                f"PDH: {self.gpu_names[0]} | "
+                f"VRAM={self._vram_total_mb:.0f}MB"
+                f"{'+' + str(int(self._shared_vram_total/(1024*1024))) + 'MB shared' if self._shared_vram_total > 0 else ''} | "
+                f"APU={self._is_apu} | "
                 f"Util={'OK' if self._util_counter else 'N/A'} | "
                 f"VRAM={'OK' if self._vram_counter else 'N/A'} | "
                 f"ADL={'OK' if self._adl_available else 'N/A'}"
@@ -358,48 +387,160 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
         return None
 
     def _detect_utilization_counter(self) -> Optional[str]:
+        """Find a working PDH GPU Engine Utilization Percentage counter.
+        For APU systems, instance names contain dynamic PIDs/LUIDs, so exact
+        instance matching is unreliable. Instead we use a counter that 
+        captures ALL engines via wildcard enumeration at runtime in get_stats().
+        
+        This function finds ANY valid engtype_3D counter as a fallback.
+        The main reading logic in get_stats() uses PS wildcard summation."""
         try:
             import win32pdh
             counter_names, instance_names = win32pdh.EnumObjectItems(
                 None, None, "GPU Engine", win32pdh.PERF_DETAIL_WIZARD)
             if not instance_names:
+                logger.debug("PDH util detect: no GPU Engine instances found")
                 return None
-            # Collect ALL engtype_3D instances for phys_0 (primary GPU)
-            targets = [inst for inst in instance_names 
-                       if 'engtype_3D' in inst and 'phys_0' in inst]
-            if not targets:
-                targets = [inst for inst in instance_names if 'engtype_3D' in inst]
-            if not targets:
-                targets = instance_names[:1]
-            # Use the first matching counter
-            test_path = "\\GPU Engine(" + targets[0] + ")\\Utilization Percentage"
-            q = win32pdh.OpenQuery()
-            win32pdh.AddCounter(q, test_path)
-            win32pdh.CollectQueryData(q)
-            win32pdh.CloseQuery(q)
-            logger.debug(f"PDH: util counter: {targets[0]}")
-            return test_path
+
+            logger.debug(f"PDH: available GPU Engine instances ({len(instance_names)}): {instance_names[:5]}...")
+
+            # Try engtype_3D instances first (broad match)
+            for inst in instance_names:
+                if 'engtype_3D' in inst:
+                    try:
+                        path = "\\GPU Engine(" + inst + ")\\Utilization Percentage"
+                        q = win32pdh.OpenQuery()
+                        c = win32pdh.AddCounter(q, path)
+                        win32pdh.CollectQueryData(q)
+                        _, val = win32pdh.GetFormattedCounterValue(c, FMT_DOUBLE | FMT_NOSCALE)
+                        win32pdh.CloseQuery(q)
+                        logger.debug(f"PDH: util counter: {inst} = {val}")
+                        return path
+                    except Exception:
+                        continue
+
+            # Last resort: any instance with Utilization Percentage
+            for inst in instance_names:
+                try:
+                    path = "\\GPU Engine(" + inst + ")\\Utilization Percentage"
+                    q = win32pdh.OpenQuery()
+                    c = win32pdh.AddCounter(q, path)
+                    win32pdh.CollectQueryData(q)
+                    win32pdh.CloseQuery(q)
+                    logger.debug(f"PDH: util counter (fallback): {inst}")
+                    return path
+                except Exception:
+                    continue
+
+            logger.debug("PDH util detect: no working counter found")
         except Exception as e:
             logger.debug(f"PDH util detect: {e}")
         return None
 
     def _detect_vram_counter(self) -> Optional[str]:
+        """Find a working PDH GPU Adapter Memory Dedicated Usage counter.
+        For APU systems, returns any valid counter as reference.
+        Actual VRAM reading uses wildcard summation in get_stats()."""
         try:
             import win32pdh
             counter_names, instance_names = win32pdh.EnumObjectItems(
                 None, None, "GPU Adapter Memory", win32pdh.PERF_DETAIL_WIZARD)
             if not instance_names:
+                logger.debug("PDH vram detect: no GPU Adapter Memory instances")
                 return None
-            target = instance_names[0]
-            path = "\\GPU Adapter Memory(" + target + ")\\Dedicated Usage"
-            q = win32pdh.OpenQuery()
-            win32pdh.AddCounter(q, path)
-            win32pdh.CollectQueryData(q)
-            win32pdh.CloseQuery(q)
-            return path
+
+            logger.debug(f"PDH: available Adapter Memory instances: {instance_names}")
+
+            for target in instance_names:
+                try:
+                    path = "\\GPU Adapter Memory(" + target + ")\\Dedicated Usage"
+                    q = win32pdh.OpenQuery()
+                    c = win32pdh.AddCounter(q, path)
+                    win32pdh.CollectQueryData(q)
+                    _, val = win32pdh.GetFormattedCounterValue(c, FMT_LARGE | FMT_NOSCALE)
+                    win32pdh.CloseQuery(q)
+                    logger.debug(f"PDH: dedicated vram counter: {target} = {val}")
+                    return path
+                except Exception:
+                    continue
+
+            logger.debug("PDH vram detect: no working counter found")
         except Exception as e:
             logger.debug(f"PDH vram detect: {e}")
         return None
+
+    def _detect_vram_shared_counter(self) -> Optional[str]:
+        """Detect PDH Shared Usage counter for APU shared system memory.
+        For APU we rely on psutil RAM proxy instead of PDH shared counters."""
+        return None
+
+    def _get_shared_vram_total(self) -> int:
+        """Get the total shared GPU memory available for APU.
+        Tries PDH counter first, falls back to WMI query via PowerShell (init only).
+        Returns bytes of shared system memory allocated for GPU.
+        All exceptions are caught internally — never crashes the backend."""
+        # Method 1: Try PDH counter read (instant)
+        if self._vram_shared_counter:
+            try:
+                val = self._vram_shared_counter.read_int()
+                if val is not None and val > 0:
+                    logger.info(f"PDH: shared VRAM total from counter: {val/(1024*1024):.0f}MB")
+                    return val
+            except Exception:
+                pass
+
+        # Method 2: Use WMI to get total shared GPU memory via Win32_VideoController
+        import tempfile, subprocess, os
+        fname = None
+        try:
+            script = r"""$gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1
+if ($gpu) {
+    # Total shared system memory allocated for GPU
+    $shared = $null
+    if ($gpu.SharedSystemMemory -gt 0) { $shared = $gpu.SharedSystemMemory }
+    # Fallback: use 50% of system RAM
+    if (-not $shared -or $shared -eq 0) {
+        try {
+            $cs = Get-WmiObject Win32_ComputerSystem | Select-Object -First 1
+            $shared = [int]($cs.TotalPhysicalMemory * 0.5)
+        } catch { $shared = 4GB }
+    }
+    $shared
+} else { 0 }"""
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.ps1', delete=False, encoding='utf-8') as f:
+                f.write(script)
+                fname = f.name
+            r = subprocess.run(
+                ['powershell', '-ExecutionPolicy', 'Bypass', '-NoProfile', '-File', fname],
+                capture_output=True, text=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                val = int(r.stdout.strip())
+                if val > 0:
+                    logger.info(f"PDH: shared VRAM total from WMI: {val/(1024*1024):.0f}MB")
+                    return val
+        except Exception as e:
+            logger.debug(f"PDH shared vram WMI: {e}")
+        finally:
+            if fname is not None:
+                try:
+                    os.unlink(fname)
+                except Exception:
+                    pass
+
+        # Method 3: Use 50% of system RAM as fallback for APU
+        try:
+            import psutil
+            shared = int(psutil.virtual_memory().total * 0.5)
+            logger.info(f"PDH: shared VRAM total from psutil: {shared/(1024*1024):.0f}MB")
+            return shared
+        except Exception:
+            pass
+
+        # Hard fallback: 4GB for APU
+        logger.warning("PDH: shared VRAM fallback 4GB for APU")
+        return 4 * 1024 * 1024 * 1024
 
     def _try_init_adl(self):
         try:
@@ -411,32 +552,145 @@ if ($gpu) { ConvertTo-Json -InputObject @{ Name = $gpu.Name; Vram = $gpu.Adapter
         except Exception:
             pass
 
-    def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        """Get GPU stats. FIXED: top-level try/except + cached temperature/fan."""
+    def _apu_wildcard_utilization(self) -> float:
+        """APU-specific: sum ALL GPU Engine Utilization Percentage counters.
+        Uses wildcard-like query to capture all dynamic PID/LUID instances.
+        Capped at 100%. Returns 0.0 on failure."""
+        import subprocess
         try:
+            # Sum ALL utilization percentage counters across ALL GPU engines
+            ps_cmd = (
+                "Get-Counter '\\GPU Engine(*)\\Utilization Percentage' -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty CounterSamples "
+                "| Measure-Object -Property CookedValue -Sum "
+                "| Select-Object -ExpandProperty Sum"
+            )
+            r = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=2,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                val = float(r.stdout.strip())
+                if val > 0:
+                    # Raw PDH values represent total across all GPU engines
+                    # Windows reports utilization in percentage units already
+                    # but can exceed 100 when summing. Cap it.
+                    result = min(100.0, max(0.0, val))
+                    logger.debug(f"PDH: APU wildcard util sum = {result:.1f}%")
+                    return result
+        except subprocess.TimeoutExpired:
+            logger.debug("PDH: APU util wildcard timed out")
+        except Exception as e:
+            logger.debug(f"PDH: APU util wildcard error: {e}")
+        return 0.0
+
+    def _apu_psutil_vram_used(self, vram_total: int) -> int:
+        """APU-specific: estimate VRAM used via system memory pressure.
+        Since APU uses shared system RAM, we use psutil memory percentage
+        to estimate how much of the shared VRAM pool is in use.
+        Falls back to system memory usage as proxy."""
+        try:
+            import psutil
+            svmem = psutil.virtual_memory()
+            # Use system memory percentage as proxy for VRAM usage
+            # APU can dynamically allocate up to ~50% of system RAM for GPU
+            # We estimate: used_vram = min(dedicated_uma, ~100%) + shared_pool * mem_usage_pct
+            dedicated_uma = self._vram_total  # e.g. 512MB
+            shared_pool = max(0, vram_total - dedicated_uma) if vram_total > dedicated_uma else 0
+            # Assume UMA is fully committed (APU always uses it)
+            # Shared portion usage = pool_size * system_memory_percentage
+            dedicated_used = dedicated_uma  # UMA is always "in use" by the GPU
+            shared_used = int(shared_pool * (svmem.percent / 100.0))
+            total_used = dedicated_used + shared_used
+            logger.debug(
+                f"PDH: APU psutil VRAM proxy: dedicated={dedicated_used}, "
+                f"shared={shared_used} (pool={shared_pool}@{svmem.percent:.0f}%) = {total_used}"
+            )
+            return total_used
+        except ImportError:
+            logger.debug("PDH: psutil not available for VRAM proxy")
+        except Exception as e:
+            logger.debug(f"PDH: APU VRAM proxy error: {e}")
+        return 0
+
+    def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
+        """Get GPU stats. APU-optimized with wildcard summation + psutil proxy.
+        
+        For APU systems:
+          - GPU Load = SUM of ALL GPU Engine Utilization Percentage counters
+            (captures dynamic PID/LUID-named instances via PS wildcard)
+          - VRAM Total = Dedicated (UMA) + 50% of system RAM (psutil)
+          - VRAM Used = UMA buffer (fully committed) + shared pool * sys mem %
+        
+        For dGPU systems:
+          - Uses standard PDH counters (instant, no PS subprocess)
+        """
+        try:
+            # Calculate VRAM total
+            if self._is_apu:
+                # APU: use psutil RAM proxy for VRAM total
+                try:
+                    import psutil
+                    sys_ram = psutil.virtual_memory().total
+                    shared_pool = int(sys_ram * 0.5)  # 50% of system RAM
+                    vram_total = self._vram_total + shared_pool
+                    self._shared_vram_total = shared_pool
+                except Exception:
+                    vram_total = self._vram_total
+                    shared_pool = 0
+            else:
+                vram_total = self._vram_total
+                shared_pool = self._shared_vram_total
+
             stats = AMDGPUStats(
                 gpu_id=gpu_id,
                 gpu_name=self.gpu_names[0] if self.gpu_names else "AMD GPU",
-                memory_total=self._vram_total,
+                memory_total=vram_total,
+                memory_shared=shared_pool,
+                is_apu=self._is_apu,
                 is_available=True,
             )
-            # GPU Utilization — PDH counter (instant, no subprocess)
-            if self._util_counter:
-                val = self._util_counter.read_double()
-                if val is not None:
-                    stats.utilization_gpu = self._scale_util(val)
 
-            # VRAM — PDH counter (instant, no subprocess)
-            if self._vram_counter:
-                used = self._vram_counter.read_int()
-                if used is not None and used > 0:
-                    stats.memory_used = used
-                    stats.memory_free = max(0, self._vram_total - used)
-                    if self._vram_total > 0:
-                        stats.utilization_memory = (used / self._vram_total) * 100.0
+            # === GPU Utilization ===
+            if self._is_apu:
+                # APU: Always use wildcard summation (captures ALL engines)
+                util_read = self._apu_wildcard_utilization()
+            else:
+                # dGPU: PDH counter (instant, no subprocess)
+                util_read = 0.0
+                if self._util_counter:
+                    val = self._util_counter.read_double()
+                    if val is not None:
+                        util_read = self._scale_util(val)
+                # Fallback to PS if PDH returns 0
+                if util_read == 0.0:
+                    util_read = self._apu_wildcard_utilization()
+            stats.utilization_gpu = util_read
 
-            # Temperature + Fan — CACHED (only refreshed every _TEMP_CACHE_SECONDS)
-            # No PowerShell subprocesses at runtime!
+            # === VRAM ===
+            if self._is_apu:
+                # APU: psutil RAM proxy for VRAM used
+                memory_used = self._apu_psutil_vram_used(vram_total)
+                stats.memory_used = memory_used
+                stats.memory_shared = memory_used - self._vram_total if memory_used > self._vram_total else 0
+                stats.memory_free = max(0, vram_total - memory_used)
+                if vram_total > 0:
+                    stats.utilization_memory = (memory_used / vram_total) * 100.0
+            else:
+                # dGPU: PDH counter for VRAM
+                dedicated_used = 0
+                if self._vram_counter:
+                    pdh_val = self._vram_counter.read_int()
+                    if pdh_val is not None and pdh_val > 0:
+                        dedicated_used = pdh_val
+                if dedicated_used > 0:
+                    stats.memory_used = dedicated_used
+                    stats.memory_free = max(0, vram_total - dedicated_used)
+                    if vram_total > 0:
+                        stats.utilization_memory = (dedicated_used / vram_total) * 100.0
+
+            # Temperature + Fan — CACHED (refreshed every _TEMP_CACHE_SECONDS)
             temp, fan = self._get_cached_temp_fan()
             stats.temperature = temp
             stats.fan_speed = fan
@@ -544,6 +798,8 @@ if ($t) { Write-Output $t }''')
             self._util_counter.close()
         if self._vram_counter:
             self._vram_counter.close()
+        if self._vram_shared_counter:
+            self._vram_shared_counter.close()
         if self._adl_ctx:
             try:
                 self._adl_ctx.close()
