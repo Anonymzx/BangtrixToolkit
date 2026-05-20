@@ -28,6 +28,7 @@ from typing import Optional
 from .base import MonitorBackend, AMDGPUStats
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)  # Suppress INFO/DEBUG spam from PDH backend
 
 FMT_DOUBLE = 0x00000200
 FMT_LARGE = 0x00000400
