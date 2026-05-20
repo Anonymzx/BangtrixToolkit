@@ -79,17 +79,6 @@ pywin32>=306; sys_platform == "win32"
 # TIDAK ADA package pip yang diperlukan.
 
 # ============================================
-# WINDOWS FALLBACK - LibreHardwareMonitor (LHM)
-# ============================================
-# LHM -> Solusi paling ampuh untuk membaca sensor Suhu (Temp) dan 
-#        Kecepatan Kipas (Fan) pada arsitektur modern seperti RDNA3 
-#        jika metode ADL bawaan gagal membaca sensor.
-#
-# * Bekerja secara otomatis di background pada Windows.
-# * Memanfaatkan HTTP Server internal LHM atau WMI wrapper.
-# * TIDAK PERLU package pip tambahan!
-
-# ============================================
 # LINUX - ROCm / amdgpu (OTOMATIS - TANPA ROCm)
 # ============================================
 # Backend Linux membaca GPU AMD langsung dari /sys/class/drm/ sysfs.
