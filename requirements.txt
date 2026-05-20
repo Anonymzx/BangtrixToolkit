@@ -1,64 +1,140 @@
 # ============================================
 # BANGTRIXTOOLKIT - Dependencies
 # ============================================
-# Install with: pip install -r requirements.txt
+# Install ALL:   pip install -r requirements.txt
+# Install MIN:   pip install -r requirements.txt --no-deps
+#                  (hanya aiohttp + requests minimal)
 #
-# MINIMAL DEPENDENCIES (as few as possible)
+# 🟢 UNIVERSAL (WAJIB untuk semua pengguna)
 # ============================================
-# NEW in v5.0: Universal Hardware Monitor
-# - Works with AMD, NVIDIA, Intel GPUs on Windows + Linux
-# - Uses standard library for most operations
-# - pynvml is OPTIONAL (NVIDIA-only)
-# - psutil is OPTIONAL (system RAM fallback)
-
-# ============================================
-# 📡 WebSocket & HTTP Server (REQUIRED)
-# ============================================
-# Required for hardware monitor WebSocket streaming
+# aiohttp  → REST API + WebSocket server untuk HW Monitor overlay
+# requests  → Google Translate + GitHub API (LHM download)
+# async-timeout → kompatibilitas aiohttp
+#
 aiohttp>=3.8.0
+requests>=2.31.0
 async-timeout>=4.0.0
 
 # ============================================
-# 🌐 HTTP Client (Optional - translate node)
+# 🖥️ SEMUA PLATFORM - System RAM Monitoring
 # ============================================
-# Google Translate API + GitHub API (LHM download)
-# NOTE: If not installed, Python urllib will be used
-requests>=2.31.0
-
-# ============================================
-# 🖥️ System Monitoring (OPTIONAL - RECOMMENDED)
-# ============================================
-# psutil provides better system RAM monitoring
-# Without it, the fallback reads /proc/meminfo on Linux
+# psutil → Memberikan data RAM sistem yang akurat.
+#           Digunakan oleh FallbackBackend + PDHBackend (APU VRAM proxy).
+# TANPA psutil: Fallback baca /proc/meminfo (Linux) atau tidak ada data RAM.
+# ✅ REKOMENDASI: Install untuk SEMUA pengguna
+#
 psutil>=5.9.0
 
 # ============================================
-# 🎮 NVIDIA GPU - pynvml (OPTIONAL)
+# 🪟 WINDOWS - Performance Counters (PDH)
 # ============================================
-# pynvml provides the most accurate stats for NVIDIA GPUs
-# on both Windows and Linux. If not installed, the monitor
-# falls back to:
-#   Windows: PDH Performance Counters (Task Manager source)
-#   Linux:   nvidia-smi CLI parsing
-# pynvml
+# pywin32 (win32pdh) → Membaca GPU Utilization dan VRAM langsung dari
+#                       Windows Performance Counters — SUMBER YANG SAMA
+#                       DENGAN TASK MANAGER. Backend utama untuk Windows.
+#
+# 🔹 AMD / APU (Radeon Graphics): PDH adalah backend UTAMA
+# 🔹 NVIDIA: PDH adalah fallback jika pynvml tidak terinstall
+# 🔹 Intel:  PDH adalah backend UTAMA
+#
+# TANPA pywin32: Fallback ke PowerShell (jauh lebih lambat, subprocess tiap detik).
+# ✅ WAJIB untuk pengguna Windows.
+# ❌ Tidak diperlukan di Linux.
+#
+pywin32>=306; sys_platform == "win32"
 
 # ============================================
-# 🪟 Windows ADL - AMD Display Library (OPTIONAL)
+# 🎮 NVIDIA GPU - pynvml (OPSIONAL - KHUSUS NVIDIA)
 # ============================================
-# For GPU temperature/fan via ADL on legacy AMD drivers
-# Most users do NOT need this - PDH counters are preferred
-# pyadl>=1.0.0; sys_platform == "win32"
+# pynvml → Membaca statistik NVIDIA langsung dari NVML (NVIDIA Management
+#           Library). Memberikan data PALING AKURAT untuk GPU NVIDIA:
+#           Utilization, VRAM, Temperature, Fan, Clock, Power.
+#
+# 🔹 NVIDIA dGPU: Backend PRIORITAS. JAUH lebih akurat daripada PDH.
+# 🔹 AMD / Intel: TIDAK DIPERLUKAN (pynvml hanya untuk NVIDIA).
+# 🔹 APU: Tidak relevan (APU AMD tidak punya NVML).
+#
+# TANPA pynvml: Fallback ke PDH (Windows) atau nvidia-smi (Linux).
+#               Data tetap akurat, hanya tidak sedetil pynvml.
+#
+# Install HANYA jika Anda punya GPU NVIDIA:
+#   pip install pynvml
+#
+# pynvml>=11.5.0
 
 # ============================================
-# 🐧 Linux ROCm - pyrsmi (OPTIONAL - NOT RECOMMENDED)
+# 🌡️ AMD GPU - Temperature / Fan via ADL (OTOMATIS)
 # ============================================
-# The universal monitor reads AMD GPU stats directly
-# from /sys/class/drm/ sysfs files — NO ROCm needed!
-# pyrsmi>=0.2.0; sys_platform == "linux"
+# ADL (AMD Display Library) → Membaca temperature dan fan speed GPU AMD
+#                              langsung dari atiadlxx.dll via ctypes.
+#
+# 🔹 AMD dGPU / APU: AKAN BEKERJA OTOMATIS jika atiadlxx.dll ada di sistem
+# 🔹 NVIDIA: Tidak relevan
+#
+# ✅ TIDAK PERLU install package apapun! Menggunakan ctypes (stdlib Python)
+#    untuk binding langsung ke DLL AMD yang sudah terinstall dengan driver.
+#
+# Jika file atiadlxx.dll TIDAK ADA di sistem (misal driver minimal):
+#   Fallback ke AMD Temperature Reader (WMI/PowerShell) atau thermal zone.
+#
+# TIDAK ADA package pip yang diperlukan.
 
 # ============================================
-# 🌡️ LibreHardwareMonitor (Windows - OPTIONAL)
+# 🌡️ AMD GPU - Temperature / Fan via pyADLX (RDNA3 SUPPORT)
 # ============================================
-# Auto-downloaded from GitHub at runtime if needed.
-# Reads: Temperature, Fan, Clock, Power, Load via WMI.
-# Not required — PDH counters are preferred.
+# pyadlx → Membaca metrik sensor Suhu (Temperature) dan Kecepatan 
+#          Kipas (Fan) pada GPU AMD modern (termasuk arsitektur RDNA3).
+#
+# 🔹 AMD dGPU: Sangat direkomendasikan untuk seri RX 7000-series.
+# 🔹 NVIDIA / Intel: Tidak relevan.
+#
+# TANPA pyadlx: Fallback ke metode ctypes atiadlxx.dll bawaan (sering 
+#               kali gagal di RDNA3) atau WMI/PowerShell.
+#
+# ✅ Direkomendasikan untuk pengguna AMD di Windows.
+# ❌ Tidak diperlukan di Linux.
+#
+pyadlx; sys_platform == "win32"
+
+# ============================================
+# 🐧 LINUX - ROCm / amdgpu (OTOMATIS - TANPA ROCm)
+# ============================================
+# Backend Linux membaca GPU AMD langsung dari /sys/class/drm/ sysfs.
+# ✅ TIDAK PERLU install ROCm, pyrsmi, atau package apapun.
+# Cukup kernel Linux standar dengan driver amdgpu.
+#
+# NVIDIA di Linux: Parsing output nvidia-smi via subprocess.
+# ✅ TIDAK PERLU package tambahan.
+
+# ============================================
+# 📋 RINGKASAN INSTALASI PER SKENARIO
+# ============================================
+#
+# ┌─────────────────────┬──────────────────────────────────────────┐
+# │ SKENARIO            │ PERINTAH INSTALL                         │
+# ├─────────────────────┼──────────────────────────────────────────┤
+# │ 🔵 SEMUA USER       │ pip install -r requirements.txt          │
+# │   (Rekomendasi)     │   (aiohttp + requests + psutil +         │
+# │                     │    pywin32 jika Windows)                 │
+# ├─────────────────────┼──────────────────────────────────────────┤
+# │ 🟢 AMD + APU        │ pip install -r requirements.txt          │
+# │   (Anda)            │   Lalu pastikan driver AMD terinstall    │
+# │                     │   (atiadlxx.dll akan terdeteksi otomatis)│
+# ├─────────────────────┼──────────────────────────────────────────┤
+# │ 🔴 NVIDIA           │ pip install -r requirements.txt          │
+# │                     │ pip install pynvml                       │
+# ├─────────────────────┼──────────────────────────────────────────┤
+# │ 🐧 Linux AMD        │ pip install aiohttp requests psutil      │
+# │                     │   (pywin32 dilewati otomatis di Linux)   │
+# ├─────────────────────┼──────────────────────────────────────────┤
+# │ 🐧 Linux NVIDIA     │ pip install aiohttp requests psutil      │
+# │                     │ pip install pynvml (opsional)            │
+# └─────────────────────┴──────────────────────────────────────────┘
+#
+# ============================================
+# 🔧 VERIFIKASI INSTALASI
+# ============================================
+# Setelah install, jalankan:
+#   python -c "from monitor import get_hw_server; srv = get_hw_server(); print('OK')"
+#
+# Jika tidak ada error, backend siap digunakan.
+# Overlay HW Monitor akan muncul di pojok kanan atas browser ComfyUI.
