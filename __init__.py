@@ -103,7 +103,7 @@ try:
 
         # --- REST API endpoint (primary) ---
         async def rest_stats_handler(request):
-            """Serve GPU stats. Always returns valid JSON — try/except is mandatory."""
+            """Serve GPU stats. Always returns valid JSON - try/except is mandatory."""
             try:
                 data = _hw_srv.get_stats_json()
                 return web.json_response(data)

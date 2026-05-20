@@ -5,53 +5,53 @@
 # Install MIN:   pip install -r requirements.txt --no-deps
 #                  (hanya aiohttp + requests minimal)
 #
-# 🟢 UNIVERSAL (WAJIB untuk semua pengguna)
+# UNIVERSAL (WAJIB untuk semua pengguna)
 # ============================================
-# aiohttp  → REST API + WebSocket server untuk HW Monitor overlay
-# requests  → Google Translate + GitHub API (LHM download)
-# async-timeout → kompatibilitas aiohttp
+# aiohttp  -> REST API + WebSocket server untuk HW Monitor overlay
+# requests  -> Google Translate + GitHub API (LHM download)
+# async-timeout -> kompatibilitas aiohttp
 #
 aiohttp>=3.8.0
 requests>=2.31.0
 async-timeout>=4.0.0
 
 # ============================================
-# 🖥️ SEMUA PLATFORM - System RAM Monitoring
+# SEMUA PLATFORM - System RAM Monitoring
 # ============================================
-# psutil → Memberikan data RAM sistem yang akurat.
+# psutil -> Memberikan data RAM sistem yang akurat.
 #           Digunakan oleh FallbackBackend + PDHBackend (APU VRAM proxy).
 # TANPA psutil: Fallback baca /proc/meminfo (Linux) atau tidak ada data RAM.
-# ✅ REKOMENDASI: Install untuk SEMUA pengguna
+# REKOMENDASI: Install untuk SEMUA pengguna
 #
 psutil>=5.9.0
 
 # ============================================
-# 🪟 WINDOWS - Performance Counters (PDH)
+# WINDOWS - Performance Counters (PDH)
 # ============================================
-# pywin32 (win32pdh) → Membaca GPU Utilization dan VRAM langsung dari
-#                       Windows Performance Counters — SUMBER YANG SAMA
+# pywin32 (win32pdh) -> Membaca GPU Utilization dan VRAM langsung dari
+#                       Windows Performance Counters - SUMBER YANG SAMA
 #                       DENGAN TASK MANAGER. Backend utama untuk Windows.
 #
-# 🔹 AMD / APU (Radeon Graphics): PDH adalah backend UTAMA
-# 🔹 NVIDIA: PDH adalah fallback jika pynvml tidak terinstall
-# 🔹 Intel:  PDH adalah backend UTAMA
+# * AMD / APU (Radeon Graphics): PDH adalah backend UTAMA
+# * NVIDIA: PDH adalah fallback jika pynvml tidak terinstall
+# * Intel:  PDH adalah backend UTAMA
 #
 # TANPA pywin32: Fallback ke PowerShell (jauh lebih lambat, subprocess tiap detik).
-# ✅ WAJIB untuk pengguna Windows.
-# ❌ Tidak diperlukan di Linux.
+# WAJIB untuk pengguna Windows.
+# Tidak diperlukan di Linux.
 #
 pywin32>=306; sys_platform == "win32"
 
 # ============================================
-# 🎮 NVIDIA GPU - pynvml (OPSIONAL - KHUSUS NVIDIA)
+# NVIDIA GPU - pynvml (OPSIONAL - KHUSUS NVIDIA)
 # ============================================
-# pynvml → Membaca statistik NVIDIA langsung dari NVML (NVIDIA Management
+# pynvml -> Membaca statistik NVIDIA langsung dari NVML (NVIDIA Management
 #           Library). Memberikan data PALING AKURAT untuk GPU NVIDIA:
 #           Utilization, VRAM, Temperature, Fan, Clock, Power.
 #
-# 🔹 NVIDIA dGPU: Backend PRIORITAS. JAUH lebih akurat daripada PDH.
-# 🔹 AMD / Intel: TIDAK DIPERLUKAN (pynvml hanya untuk NVIDIA).
-# 🔹 APU: Tidak relevan (APU AMD tidak punya NVML).
+# * NVIDIA dGPU: Backend PRIORITAS. JAUH lebih akurat daripada PDH.
+# * AMD / Intel: TIDAK DIPERLUKAN (pynvml hanya untuk NVIDIA).
+# * APU: Tidak relevan (APU AMD tidak punya NVML).
 #
 # TANPA pynvml: Fallback ke PDH (Windows) atau nvidia-smi (Linux).
 #               Data tetap akurat, hanya tidak sedetil pynvml.
@@ -62,16 +62,16 @@ pywin32>=306; sys_platform == "win32"
 # pynvml>=11.5.0
 
 # ============================================
-# 🌡️ AMD GPU - Temperature / Fan via ADL (OTOMATIS)
+# AMD GPU - Temperature / Fan via ADL (OTOMATIS)
 # ============================================
-# ADL (AMD Display Library) → Membaca temperature dan fan speed GPU AMD
+# ADL (AMD Display Library) -> Membaca temperature dan fan speed GPU AMD
 #                              langsung dari atiadlxx.dll via ctypes.
 #
-# 🔹 AMD dGPU / APU: AKAN BEKERJA OTOMATIS jika atiadlxx.dll ada di sistem
-# 🔹 NVIDIA: Tidak relevan
+# * AMD dGPU / APU: AKAN BEKERJA OTOMATIS jika atiadlxx.dll ada di sistem
+# * NVIDIA: Tidak relevan
 #
-# ✅ TIDAK PERLU install package apapun! Menggunakan ctypes (stdlib Python)
-#    untuk binding langsung ke DLL AMD yang sudah terinstall dengan driver.
+# TIDAK PERLU install package apapun! Menggunakan ctypes (stdlib Python)
+# untuk binding langsung ke DLL AMD yang sudah terinstall dengan driver.
 #
 # Jika file atiadlxx.dll TIDAK ADA di sistem (misal driver minimal):
 #   Fallback ke AMD Temperature Reader (WMI/PowerShell) atau thermal zone.
@@ -79,59 +79,59 @@ pywin32>=306; sys_platform == "win32"
 # TIDAK ADA package pip yang diperlukan.
 
 # ============================================
-# 🌡️ AMD GPU - Temperature / Fan via pyADLX (RDNA3 SUPPORT)
+# AMD GPU - Temperature / Fan via pyADLX (RDNA3 SUPPORT)
 # ============================================
-# pyadlx → Membaca metrik sensor Suhu (Temperature) dan Kecepatan 
-#          Kipas (Fan) pada GPU AMD modern (termasuk arsitektur RDNA3).
+# pyadlx -> Membaca metrik sensor Suhu (Temperature) dan Kecepatan
+#           Kipas (Fan) pada GPU AMD modern (termasuk arsitektur RDNA3).
 #
-# 🔹 AMD dGPU: Sangat direkomendasikan untuk seri RX 7000-series.
-# 🔹 NVIDIA / Intel: Tidak relevan.
+# * AMD dGPU: Sangat direkomendasikan untuk seri RX 7000-series.
+# * NVIDIA / Intel: Tidak relevan.
 #
-# TANPA pyadlx: Fallback ke metode ctypes atiadlxx.dll bawaan (sering 
+# TANPA pyadlx: Fallback ke metode ctypes atiadlxx.dll bawaan (sering
 #               kali gagal di RDNA3) atau WMI/PowerShell.
 #
-# ✅ Direkomendasikan untuk pengguna AMD di Windows.
-# ❌ Tidak diperlukan di Linux.
+# Direkomendasikan untuk pengguna AMD di Windows.
+# Tidak diperlukan di Linux.
 #
 pyadlx; sys_platform == "win32"
 
 # ============================================
-# 🐧 LINUX - ROCm / amdgpu (OTOMATIS - TANPA ROCm)
+# LINUX - ROCm / amdgpu (OTOMATIS - TANPA ROCm)
 # ============================================
 # Backend Linux membaca GPU AMD langsung dari /sys/class/drm/ sysfs.
-# ✅ TIDAK PERLU install ROCm, pyrsmi, atau package apapun.
+# TIDAK PERLU install ROCm, pyrsmi, atau package apapun.
 # Cukup kernel Linux standar dengan driver amdgpu.
 #
 # NVIDIA di Linux: Parsing output nvidia-smi via subprocess.
-# ✅ TIDAK PERLU package tambahan.
+# TIDAK PERLU package tambahan.
 
 # ============================================
-# 📋 RINGKASAN INSTALASI PER SKENARIO
+# RINGKASAN INSTALASI PER SKENARIO
 # ============================================
 #
-# ┌─────────────────────┬──────────────────────────────────────────┐
-# │ SKENARIO            │ PERINTAH INSTALL                         │
-# ├─────────────────────┼──────────────────────────────────────────┤
-# │ 🔵 SEMUA USER       │ pip install -r requirements.txt          │
-# │   (Rekomendasi)     │   (aiohttp + requests + psutil +         │
-# │                     │    pywin32 jika Windows)                 │
-# ├─────────────────────┼──────────────────────────────────────────┤
-# │ 🟢 AMD + APU        │ pip install -r requirements.txt          │
-# │   (Anda)            │   Lalu pastikan driver AMD terinstall    │
-# │                     │   (atiadlxx.dll akan terdeteksi otomatis)│
-# ├─────────────────────┼──────────────────────────────────────────┤
-# │ 🔴 NVIDIA           │ pip install -r requirements.txt          │
-# │                     │ pip install pynvml                       │
-# ├─────────────────────┼──────────────────────────────────────────┤
-# │ 🐧 Linux AMD        │ pip install aiohttp requests psutil      │
-# │                     │   (pywin32 dilewati otomatis di Linux)   │
-# ├─────────────────────┼──────────────────────────────────────────┤
-# │ 🐧 Linux NVIDIA     │ pip install aiohttp requests psutil      │
-# │                     │ pip install pynvml (opsional)            │
-# └─────────────────────┴──────────────────────────────────────────┘
-#
+# +-----------------------+----------------------------------------------------+
+# | SKENARIO              | PERINTAH INSTALL                                   |
+# +-----------------------+----------------------------------------------------+
+# | SEMUA USER            | pip install -r requirements.txt                    |
+# |   (Rekomendasi)       |   (aiohttp + requests + psutil +                   |
+# |                       |    pywin32 jika Windows)                           |
+# +-----------------------+----------------------------------------------------+
+# | AMD + APU             | pip install -r requirements.txt                    |
+# |                       |   Lalu pastikan driver AMD terinstall              |
+# |                       |   (atiadlxx.dll akan terdeteksi otomatis)          |
+# +-----------------------+----------------------------------------------------+
+# | NVIDIA                | pip install -r requirements.txt                    |
+# |                       | pip install pynvml                                 |
+# +-----------------------+----------------------------------------------------+
+# | Linux AMD             | pip install aiohttp requests psutil                |
+# |                       |   (pywin32 dilewati otomatis di Linux)             |
+# +-----------------------+----------------------------------------------------+
+# | Linux NVIDIA          | pip install aiohttp requests psutil                |
+# |                       | pip install pynvml (opsional)                      |
+# +-----------------------+----------------------------------------------------+
+
 # ============================================
-# 🔧 VERIFIKASI INSTALASI
+# VERIFIKASI INSTALASI
 # ============================================
 # Setelah install, jalankan:
 #   python -c "from monitor import get_hw_server; srv = get_hw_server(); print('OK')"
