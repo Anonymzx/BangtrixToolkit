@@ -5,13 +5,6 @@
  * Strategy: REST API polling via GET /bangtrix/hw/stats.
  * Fallback: WebSocket /ws/hw_monitor.
  * Toggle: Ctrl+Shift+M
- * 
- * Settings (5 integrated via app.ui.settings.addSetting):
- *   1. HW Monitor Theme          — Combo (4 themes)
- *   2. HW Monitor Refresh Rate   — Combo (500/1000/2000 ms)
- *   3. Show HW Monitor on Startup — Boolean
- *   4. Background Opacity        — Slider (0.1 .. 1.0)
- *   5. Compact Mode              — Boolean
  */
 
 (function() {
@@ -19,42 +12,171 @@
     console.log("🖥️ Bangtrix HW Monitor: loading...");
 
     // ================================================================
-    // T H E M E S
+    // T H E M E S  (Dark + Light variants for each)
     // ================================================================
     const THEMES = {
-        "Default (Dark Green)": {
-            accent: "#00e676", accentRgb: "0,230,118", accentWarm: "#ffaa00",
-            accentCrit: "#ff4444", gpuName: "#66aaff", fillBar: "#00e676",
-            tempGrad: "linear-gradient(90deg,#00e676,#ffaa00,#ff4444)",
-            sparklineLine: "#00e676", sparklineTop: "#00e67633", sparklineBot: "#00e67605",
-            liveColor: "#00e676", vendorColor: "#666", labelColor: "#666",
-            statValueColor: "#00e676", headerBg: "rgba(100,150,255,0.1)", headerBgHex: "rgba(100,150,255,0.1)"
+        "Default Green": {
+            dark: {
+                bg: "rgba(12,12,18,0.92)", accent: "#00e676", accentRgb: "0,230,118",
+                accentWarm: "#ffaa00", accentCrit: "#ff4444", gpuName: "#66aaff",
+                fillBar: "#00e676", tempGrad: "linear-gradient(90deg,#00e676,#ffaa00,#ff4444)",
+                sparklineLine: "#00e676", sparklineTop: "#00e67644", sparklineBot: "#00e67608",
+                liveColor: "#00e676", vendorColor: "#888", labelColor: "#888",
+                statValueColor: "#e0e0e0", headerBg: "rgba(0,230,118,0.08)",
+                glowColor: "0,230,118", neonIntensity: 0
+            },
+            light: {
+                bg: "rgba(240,240,248,0.92)", accent: "#008844", accentRgb: "0,136,68",
+                accentWarm: "#cc7700", accentCrit: "#cc2222", gpuName: "#2266cc",
+                fillBar: "#008844", tempGrad: "linear-gradient(90deg,#008844,#cc7700,#cc2222)",
+                sparklineLine: "#008844", sparklineTop: "#00884433", sparklineBot: "#00884408",
+                liveColor: "#008844", vendorColor: "#666", labelColor: "#666",
+                statValueColor: "#222", headerBg: "rgba(0,136,68,0.08)",
+                glowColor: "0,136,68", neonIntensity: 0
+            }
         },
         "Neon Blue": {
-            accent: "#00bfff", accentRgb: "0,191,255", accentWarm: "#ff7700",
-            accentCrit: "#ff3355", gpuName: "#66ddff", fillBar: "#00bfff",
-            tempGrad: "linear-gradient(90deg,#00bfff,#ff7700,#ff3355)",
-            sparklineLine: "#00bfff", sparklineTop: "#00bfff33", sparklineBot: "#00bfff05",
-            liveColor: "#00bfff", vendorColor: "#6688aa", labelColor: "#6688aa",
-            statValueColor: "#00bfff", headerBg: "rgba(0,180,255,0.1)", headerBgHex: "rgba(0,180,255,0.1)"
+            dark: {
+                bg: "rgba(8,12,28,0.92)", accent: "#00bfff", accentRgb: "0,191,255",
+                accentWarm: "#ff7700", accentCrit: "#ff3355", gpuName: "#66ddff",
+                fillBar: "#00bfff", tempGrad: "linear-gradient(90deg,#00bfff,#ff7700,#ff3355)",
+                sparklineLine: "#00bfff", sparklineTop: "#00bfff44", sparklineBot: "#00bfff08",
+                liveColor: "#00bfff", vendorColor: "#7799bb", labelColor: "#7799bb",
+                statValueColor: "#e0e0e0", headerBg: "rgba(0,180,255,0.08)",
+                glowColor: "0,191,255", neonIntensity: 1
+            },
+            light: {
+                bg: "rgba(235,242,250,0.92)", accent: "#0066aa", accentRgb: "0,102,170",
+                accentWarm: "#b85a00", accentCrit: "#bb2244", gpuName: "#3377cc",
+                fillBar: "#0066aa", tempGrad: "linear-gradient(90deg,#0066aa,#b85a00,#bb2244)",
+                sparklineLine: "#0066aa", sparklineTop: "#0066aa33", sparklineBot: "#0066aa08",
+                liveColor: "#0066aa", vendorColor: "#556677", labelColor: "#556677",
+                statValueColor: "#222", headerBg: "rgba(0,102,170,0.08)",
+                glowColor: "0,102,170", neonIntensity: 0
+            }
         },
         "Crimson Red": {
-            accent: "#ff4444", accentRgb: "255,68,68", accentWarm: "#ff8844",
-            accentCrit: "#cc0000", gpuName: "#ff6666", fillBar: "#ff4444",
-            tempGrad: "linear-gradient(90deg,#ff4444,#ff8844,#cc0000)",
-            sparklineLine: "#ff4444", sparklineTop: "#ff444433", sparklineBot: "#ff444405",
-            liveColor: "#ff4444", vendorColor: "#996666", labelColor: "#996666",
-            statValueColor: "#ff4444", headerBg: "rgba(255,68,68,0.1)", headerBgHex: "rgba(255,68,68,0.1)"
+            dark: {
+                bg: "rgba(20,8,8,0.92)", accent: "#ff4444", accentRgb: "255,68,68",
+                accentWarm: "#ff8844", accentCrit: "#cc0000", gpuName: "#ff6666",
+                fillBar: "#ff4444", tempGrad: "linear-gradient(90deg,#ff4444,#ff8844,#cc0000)",
+                sparklineLine: "#ff4444", sparklineTop: "#ff444444", sparklineBot: "#ff444408",
+                liveColor: "#ff4444", vendorColor: "#aa7777", labelColor: "#aa7777",
+                statValueColor: "#e0e0e0", headerBg: "rgba(255,68,68,0.08)",
+                glowColor: "255,68,68", neonIntensity: 1
+            },
+            light: {
+                bg: "rgba(252,238,238,0.92)", accent: "#bb2222", accentRgb: "187,34,34",
+                accentWarm: "#bb6622", accentCrit: "#990000", gpuName: "#cc4444",
+                fillBar: "#bb2222", tempGrad: "linear-gradient(90deg,#bb2222,#bb6622,#990000)",
+                sparklineLine: "#bb2222", sparklineTop: "#bb222233", sparklineBot: "#bb222208",
+                liveColor: "#bb2222", vendorColor: "#885555", labelColor: "#885555",
+                statValueColor: "#222", headerBg: "rgba(187,34,34,0.08)",
+                glowColor: "187,34,34", neonIntensity: 0
+            }
         },
-        "Hacker (Black & Bright Green)": {
-            accent: "#00ff00", accentRgb: "0,255,0", accentWarm: "#88ff00",
-            accentCrit: "#ff0000", gpuName: "#00ff00", fillBar: "#00ff00",
-            tempGrad: "linear-gradient(90deg,#00ff00,#88ff00,#ff0000)",
-            sparklineLine: "#00ff00", sparklineTop: "#00ff0033", sparklineBot: "#00ff0005",
-            liveColor: "#00ff00", vendorColor: "#338833", labelColor: "#338833",
-            statValueColor: "#00ff00", headerBg: "rgba(0,255,0,0.05)", headerBgHex: "rgba(0,255,0,0.05)"
+        "Hacker Green": {
+            dark: {
+                bg: "rgba(0,0,0,0.92)", accent: "#00ff00", accentRgb: "0,255,0",
+                accentWarm: "#88ff00", accentCrit: "#ff0000", gpuName: "#00ff00",
+                fillBar: "#00ff00", tempGrad: "linear-gradient(90deg,#00ff00,#88ff00,#ff0000)",
+                sparklineLine: "#00ff00", sparklineTop: "#00ff0044", sparklineBot: "#00ff0008",
+                liveColor: "#00ff00", vendorColor: "#336633", labelColor: "#336633",
+                statValueColor: "#c0c0c0", headerBg: "rgba(0,255,0,0.05)",
+                glowColor: "0,255,0", neonIntensity: 1
+            },
+            light: {
+                bg: "rgba(240,248,240,0.92)", accent: "#007700", accentRgb: "0,119,0",
+                accentWarm: "#669900", accentCrit: "#cc0000", gpuName: "#005500",
+                fillBar: "#007700", tempGrad: "linear-gradient(90deg,#007700,#669900,#cc0000)",
+                sparklineLine: "#007700", sparklineTop: "#00770033", sparklineBot: "#00770008",
+                liveColor: "#007700", vendorColor: "#446644", labelColor: "#446644",
+                statValueColor: "#222", headerBg: "rgba(0,119,0,0.08)",
+                glowColor: "0,119,0", neonIntensity: 0
+            }
+        },
+        "Cyberpunk (Yellow/Cyan)": {
+            dark: {
+                bg: "rgba(10,0,20,0.95)", accent: "#ffdd00", accentRgb: "255,221,0",
+                accentWarm: "#ff8800", accentCrit: "#ff0055", gpuName: "#00ffcc",
+                fillBar: "#ffdd00", tempGrad: "linear-gradient(90deg,#00ffcc,#ffdd00,#ff0055)",
+                sparklineLine: "#ffdd00", sparklineTop: "#ffdd0044", sparklineBot: "#ffdd0008",
+                liveColor: "#00ffcc", vendorColor: "#ff88cc", labelColor: "#aa66cc",
+                statValueColor: "#f0e0ff", headerBg: "rgba(255,221,0,0.08)",
+                glowColor: "255,221,0", neonIntensity: 2
+            },
+            light: {
+                bg: "rgba(250,245,235,0.92)", accent: "#886600", accentRgb: "136,102,0",
+                accentWarm: "#aa5500", accentCrit: "#cc0044", gpuName: "#007766",
+                fillBar: "#886600", tempGrad: "linear-gradient(90deg,#007766,#886600,#cc0044)",
+                sparklineLine: "#886600", sparklineTop: "#88660033", sparklineBot: "#88660008",
+                liveColor: "#007766", vendorColor: "#886655", labelColor: "#886655",
+                statValueColor: "#222", headerBg: "rgba(136,102,0,0.08)",
+                glowColor: "136,102,0", neonIntensity: 0
+            }
+        },
+        "Synthwave (Pink/Purple)": {
+            dark: {
+                bg: "rgba(16,0,28,0.95)", accent: "#ff44cc", accentRgb: "255,68,204",
+                accentWarm: "#ffaa00", accentCrit: "#00ffaa", gpuName: "#aa66ff",
+                fillBar: "#ff44cc", tempGrad: "linear-gradient(90deg,#ff44cc,#ffaa00,#00ffaa)",
+                sparklineLine: "#ff44cc", sparklineTop: "#ff44cc44", sparklineBot: "#ff44cc08",
+                liveColor: "#ff44cc", vendorColor: "#aa88cc", labelColor: "#8866aa",
+                statValueColor: "#f0e0ff", headerBg: "rgba(255,68,204,0.08)",
+                glowColor: "255,68,204", neonIntensity: 2
+            },
+            light: {
+                bg: "rgba(248,240,248,0.92)", accent: "#993377", accentRgb: "153,51,119",
+                accentWarm: "#aa7700", accentCrit: "#007755", gpuName: "#7744bb",
+                fillBar: "#993377", tempGrad: "linear-gradient(90deg,#993377,#aa7700,#007755)",
+                sparklineLine: "#993377", sparklineTop: "#99337733", sparklineBot: "#99337708",
+                liveColor: "#993377", vendorColor: "#775566", labelColor: "#775566",
+                statValueColor: "#222", headerBg: "rgba(153,51,119,0.08)",
+                glowColor: "153,51,119", neonIntensity: 0
+            }
+        },
+        "Bangtrix Signature": {
+            dark: {
+                bg: "rgba(6,6,18,0.95)", accent: "#ff6600", accentRgb: "255,102,0",
+                accentWarm: "#ffcc00", accentCrit: "#00ccff", gpuName: "#ff8844",
+                fillBar: "#ff6600", tempGrad: "linear-gradient(90deg,#ff6600,#ffcc00,#00ccff)",
+                sparklineLine: "#ff6600", sparklineTop: "#ff660044", sparklineBot: "#ff660008",
+                liveColor: "#ff6600", vendorColor: "#ff8844", labelColor: "#ffaa44",
+                statValueColor: "#fff0e0", headerBg: "rgba(255,102,0,0.08)",
+                glowColor: "255,102,0", neonIntensity: 1
+            },
+            light: {
+                bg: "rgba(252,244,236,0.92)", accent: "#cc5500", accentRgb: "204,85,0",
+                accentWarm: "#aa8800", accentCrit: "#0088aa", gpuName: "#cc7733",
+                fillBar: "#cc5500", tempGrad: "linear-gradient(90deg,#cc5500,#aa8800,#0088aa)",
+                sparklineLine: "#cc5500", sparklineTop: "#cc550033", sparklineBot: "#cc550008",
+                liveColor: "#cc5500", vendorColor: "#aa6633", labelColor: "#aa6633",
+                statValueColor: "#222", headerBg: "rgba(204,85,0,0.08)",
+                glowColor: "204,85,0", neonIntensity: 0
+            }
+        },
+        "Custom": {
+            dark: {
+                bg: "rgba(12,12,18,0.92)", accent: "#00ff00", accentRgb: "0,255,0",
+                accentWarm: "#ffaa00", accentCrit: "#ff4444", gpuName: "#66aaff",
+                fillBar: "#00ff00", tempGrad: "linear-gradient(90deg,#00ff00,#ffaa00,#ff4444)",
+                sparklineLine: "#00ff00", sparklineTop: "#00ff0044", sparklineBot: "#00ff0008",
+                liveColor: "#00ff00", vendorColor: "#888", labelColor: "#888",
+                statValueColor: "#e0e0e0", headerBg: "rgba(0,255,0,0.08)",
+                glowColor: "0,255,0", neonIntensity: 1
+            },
+            light: {
+                bg: "rgba(240,240,248,0.92)", accent: "#008800", accentRgb: "0,136,0",
+                accentWarm: "#cc7700", accentCrit: "#cc2222", gpuName: "#2266cc",
+                fillBar: "#008800", tempGrad: "linear-gradient(90deg,#008800,#cc7700,#cc2222)",
+                sparklineLine: "#008800", sparklineTop: "#00880033", sparklineBot: "#00880008",
+                liveColor: "#008800", vendorColor: "#666", labelColor: "#666",
+                statValueColor: "#222", headerBg: "rgba(0,136,0,0.08)",
+                glowColor: "0,136,0", neonIntensity: 0
+            }
         }
     };
+    const THEME_NAMES = Object.keys(THEMES);
 
     // ================================================================
     // S T A T E
@@ -64,8 +186,46 @@
     let pollInterval = null, pollRetries = 0;
     const MAX_RETRIES = 30;
 
-    let curTheme = "Default (Dark Green)", curRefreshMs = 1000;
-    let curShowOnStartup = true, curBgOpacity = 0.92, curCompactMode = false;
+    let curTheme = "Default Green", curBaseMode = "Dark", curRefreshMs = 1000;
+    let curShowOnStartup = true, curBgOpacity = 0.92, curCompactMode = false, curGhostMode = false;
+    let curCustomAccent = "#00ff00", curCustomText = "#ffffff";
+
+    // ================================================================
+    // T H E M E   H E L P E R
+    // ================================================================
+    function _getTheme() {
+        const t = THEMES[curTheme] || THEMES["Default Green"];
+        const mode = curBaseMode === "Light" ? "light" : "dark";
+        let colors = t[mode];
+        // If Custom theme, override accent & color with user values
+        if (curTheme === "Custom") {
+            const mode2 = curBaseMode === "Light" ? "light" : "dark";
+            let base = THEMES["Default Green"][mode2];
+            // Parse custom accent to RGB
+            let acRgb = "0,255,0";
+            try {
+                const c = document.createElement('span');
+                c.style.color = curCustomAccent;
+                const m = c.style.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+                if (m) acRgb = m[1] + "," + m[2] + "," + m[3];
+            } catch(e) {}
+            const statVal = curBaseMode === "Light" ? curCustomText : "#fff";
+            const valColor = curBaseMode === "Light" ? "#222" : statVal;
+            colors = {
+                bg: base.bg, accent: curCustomAccent, accentRgb: acRgb,
+                accentWarm: base.accentWarm, accentCrit: base.accentCrit,
+                gpuName: curCustomAccent, fillBar: curCustomAccent,
+                tempGrad: "linear-gradient(90deg," + curCustomAccent + "," + base.accentWarm + "," + base.accentCrit + ")",
+                sparklineLine: curCustomAccent, sparklineTop: "rgba(" + acRgb + ",0.27)",
+                sparklineBot: "rgba(" + acRgb + ",0.03)",
+                liveColor: curCustomAccent, vendorColor: base.labelColor,
+                labelColor: base.labelColor, statValueColor: valColor,
+                headerBg: "rgba(" + acRgb + ",0.08)",
+                glowColor: acRgb, neonIntensity: 1
+            };
+        }
+        return colors;
+    }
 
     // ================================================================
     // U T I L S
@@ -89,10 +249,14 @@
             if (!raw) return;
             const s = JSON.parse(raw);
             if (s['Bangtrix.HWMonitor.Theme'] && THEMES[s['Bangtrix.HWMonitor.Theme']]) curTheme = s['Bangtrix.HWMonitor.Theme'];
+            if (s['Bangtrix.HWMonitor.BaseMode']) curBaseMode = s['Bangtrix.HWMonitor.BaseMode'];
             if (s['Bangtrix.HWMonitor.RefreshRate'] != null) curRefreshMs = Number(s['Bangtrix.HWMonitor.RefreshRate']) || 1000;
             if (s['Bangtrix.HWMonitor.ShowOnStartup'] != null) curShowOnStartup = !!s['Bangtrix.HWMonitor.ShowOnStartup'];
             if (s['Bangtrix.HWMonitor.BgOpacity'] != null) curBgOpacity = Number(s['Bangtrix.HWMonitor.BgOpacity']) || 0.92;
             if (s['Bangtrix.HWMonitor.CompactMode'] != null) curCompactMode = !!s['Bangtrix.HWMonitor.CompactMode'];
+            if (s['Bangtrix.HWMonitor.GhostMode'] != null) curGhostMode = !!s['Bangtrix.HWMonitor.GhostMode'];
+            if (s['Bangtrix.HWMonitor.CustomAccent']) curCustomAccent = s['Bangtrix.HWMonitor.CustomAccent'];
+            if (s['Bangtrix.HWMonitor.CustomText']) curCustomText = s['Bangtrix.HWMonitor.CustomText'];
         } catch(e) {}
     }
 
@@ -108,35 +272,93 @@
     }
     function _updateDynamicCss() {
         if (!dynamicCss) return;
-        const t = THEMES[curTheme] || THEMES["Default (Dark Green)"];
+        const t = _getTheme();
+        const isTextDark = curBaseMode === "Light";
+        const textMain = isTextDark ? "#1a1a1a" : "#e0e0e0";
+        const headerBorderBottom = "rgba(255,255,255,0.04)";
+        const sparklineBg = isTextDark ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.2)";
+        const barBg = isTextDark ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.08)";
+        const statusBorderTop = isTextDark ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.04)";
+        const gpuNameBg = isTextDark ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)";
+
+        let glowExtra = "";
+        if (t.neonIntensity >= 1 && !curGhostMode) {
+            // Subtle glow on accent elements
+            glowExtra = 
+                '.hw-fill{box-shadow:0 0 8px rgba(' + t.glowColor + ',0.4)}' +
+                '.hw-stat-value{text-shadow:0 0 8px rgba(' + t.glowColor + ',0.15)}';
+        }
+        if (t.neonIntensity >= 2 && !curGhostMode) {
+            glowExtra += 
+                '.hw-gpu-name{text-shadow:0 0 12px rgba(' + t.glowColor + ',0.25)}' +
+                '.hw-title{text-shadow:0 0 10px rgba(' + t.glowColor + ',0.2)}';
+        }
+
         dynamicCss.textContent =
-            '#bangtrix-hw-monitor{background:rgba(18,18,24,' + Number(curBgOpacity).toFixed(2) + ');' +
-            'border:1px solid rgba(' + t.accentRgb + ',0.3);}' +
+            '#bangtrix-hw-monitor{background:' + t.bg + ';' +
+            'border:1px solid rgba(' + t.accentRgb + ',0.25);' +
+            'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);' +
+            'transition:all 0.3s ease;}' +
             '#bangtrix-hw-monitor.hidden{display:none}' +
             '#bangtrix-hw-monitor.minimized .hw-body{display:none}' +
-            '.hw-header{background:' + t.headerBgHex + ';}' +
-            '.hw-gpu-name{color:' + t.gpuName + '}' +
-            '.hw-vendor-line{color:' + t.vendorColor + '}' +
-            '.hw-stat-label{color:' + t.labelColor + '}' +
-            '.hw-stat-value{color:' + t.statValueColor + '}' +
+            '.hw-header{background:' + t.headerBg + ';border-bottom:1px solid ' + headerBorderBottom + ';transition:all 0.3s ease;}' +
+            '.hw-gpu-name{color:' + t.gpuName + ';background:' + gpuNameBg + ';transition:all 0.3s ease;}' +
+            '.hw-vendor-line{color:' + t.vendorColor + ';transition:color 0.3s ease;}' +
+            '.hw-stat-label{color:' + t.labelColor + ';transition:color 0.3s ease;}' +
+            '.hw-stat-value{color:' + t.statValueColor + ';transition:all 0.3s ease;}' +
             '.hw-stat-value.warn{color:' + t.accentWarm + '}' +
             '.hw-stat-value.crit{color:' + t.accentCrit + '}' +
-            '.hw-fill{background:' + t.fillBar + '}' +
+            '.hw-fill{background:' + t.fillBar + ';transition:all 0.3s ease;}' +
             '.hw-fill.hw-temp-fill{background:' + t.tempGrad + '}' +
-            '.hw-status.live{color:' + t.liveColor + '}' +
-            '.hw-status.err{color:' + t.accentCrit + '}';
+            '.hw-bar{background:' + barBg + ';transition:background 0.3s ease;}' +
+            '#bangtrix-hw-monitor,.hw-header,.hw-body{transition:all 0.3s ease;}' +
+            '.hw-status.live{color:' + t.liveColor + ';transition:color 0.3s ease;}' +
+            '.hw-status.err{color:' + t.accentCrit + '}' +
+            '.hw-sparkline{background:' + sparklineBg + ';transition:background 0.3s ease;}' +
+            '.hw-status-bar{border-top:1px solid ' + statusBorderTop + ';transition:border-color 0.3s ease;}' +
+            '.hw-btn{transition:all 0.2s ease;}' +
+            '.hw-title{color:' + textMain + ';transition:color 0.3s ease;}' +
+            '.hw-icon{transition:color 0.3s ease;}' +
+            glowExtra;
     }
-    function _applyTheme() { _updateDynamicCss(); }
+    function _applyTheme() {
+        _updateDynamicCss();
+        _applyBgOpacity();
+        _applyGhostMode();
+    }
     function _applyBgOpacity() {
         if (!widget) return;
-        const t = THEMES[curTheme] || THEMES["Default (Dark Green)"];
-        widget.style.background = 'rgba(18,18,24,' + Number(curBgOpacity).toFixed(2) + ')';
-        widget.style.borderColor = 'rgba(' + t.accentRgb + ',0.3)';
+        const t = _getTheme();
+        if (!curGhostMode) {
+            widget.style.background = curBaseMode === "Light"
+                ? 'rgba(240,240,248,' + Number(curBgOpacity).toFixed(2) + ')'
+                : 'rgba(12,12,18,' + Number(curBgOpacity).toFixed(2) + ')';
+            widget.style.borderColor = 'rgba(' + t.accentRgb + ',0.25)';
+        }
     }
     function _applyCompactMode() {
         if (!widget) return;
         const sc = widget.querySelector('.hw-sparkline-container');
         if (sc) sc.style.display = curCompactMode ? 'none' : '';
+    }
+    function _applyGhostMode() {
+        if (!widget) return;
+        if (curGhostMode) {
+            widget.style.background = 'transparent';
+            widget.style.border = 'none';
+            widget.style.boxShadow = 'none';
+            widget.style.backdropFilter = 'none';
+            widget.style.webkitBackdropFilter = 'none';
+        } else {
+            const t = _getTheme();
+            widget.style.background = curBaseMode === "Light"
+                ? 'rgba(240,240,248,' + Number(curBgOpacity).toFixed(2) + ')'
+                : 'rgba(12,12,18,' + Number(curBgOpacity).toFixed(2) + ')';
+            widget.style.border = '1px solid rgba(' + t.accentRgb + ',0.25)';
+            widget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15)';
+            widget.style.backdropFilter = 'blur(10px)';
+            widget.style.webkitBackdropFilter = 'blur(10px)';
+        }
     }
 
     // ================================================================
@@ -176,27 +398,27 @@
         const baseCss = document.createElement('style');
         baseCss.id = 'bangtrix-hw-base-css';
         baseCss.textContent =
-            '#bangtrix-hw-monitor{position:fixed;top:60px;right:20px;width:260px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;color:#e0e0e0;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,0.4);backdrop-filter:blur(8px);user-select:none;border-radius:10px;}' +
-            '.hw-header{display:flex;align-items:center;padding:8px 12px;gap:8px;cursor:move;border-radius:10px 10px 0 0;border-bottom:1px solid rgba(255,255,255,0.04)}' +
+            '#bangtrix-hw-monitor{position:fixed;top:60px;right:20px;width:260px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,0.35),0 2px 8px rgba(0,0,0,0.15);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);user-select:none;border-radius:12px;overflow:hidden}' +
+            '.hw-header{display:flex;align-items:center;padding:8px 12px;gap:8px;cursor:move;border-radius:12px 12px 0 0}' +
             '.hw-icon{font-size:12px;animation:pulse 1.5s infinite}' +
             '@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}' +
-            '.hw-title{flex:1;font-weight:600;font-size:12px;color:#fff}' +
+            '.hw-title{flex:1;font-weight:600;font-size:12px}' +
             '.hw-controls{display:flex;gap:4px}' +
             '.hw-btn{background:rgba(255,255,255,0.08);border:none;color:#ccc;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:11px;line-height:20px;text-align:center}' +
             '.hw-btn:hover{background:rgba(255,255,255,0.2)}' +
             '.hw-btn-close:hover{background:rgba(220,60,60,0.4)!important}' +
-            '.hw-body{padding:8px 12px 10px}' +
-            '.hw-gpu-name{text-align:center;font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;background:rgba(255,255,255,0.03);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+            '.hw-body{padding:8px 12px 10px;transition:all 0.3s ease}' +
+            '.hw-gpu-name{text-align:center;font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
             '.hw-vendor-line{text-align:center;font-size:9px;margin:2px 0 6px}' +
             '.hw-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}' +
             '.hw-stat{display:flex;flex-direction:column;gap:1px}' +
             '.hw-stat-label{font-size:9px;text-transform:uppercase}' +
-            '.hw-stat-value{font-weight:600;font-size:12px;transition:color 0.2s}' +
-            '.hw-bar{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}' +
-            '.hw-fill{height:100%;width:0%;border-radius:2px;transition:width 0.3s ease}' +
+            '.hw-stat-value{font-weight:600;font-size:12px}' +
+            '.hw-bar{height:4px;border-radius:2px;overflow:hidden}' +
+            '.hw-fill{height:100%;width:0%;border-radius:2px}' +
             '.hw-sparkline-container{margin-top:6px}' +
-            '.hw-sparkline{width:100%;height:36px;border-radius:4px;background:rgba(0,0,0,0.2)}' +
-            '.hw-status-bar{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.04);font-size:9px}' +
+            '.hw-sparkline{width:100%;height:36px;border-radius:4px}' +
+            '.hw-status-bar{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;font-size:9px}' +
             '.hw-status.live{animation:livePulse 1.5s infinite}' +
             '@keyframes livePulse{0%,100%{color:inherit}50%{opacity:0.5}}';
         document.head.appendChild(baseCss);
@@ -248,7 +470,6 @@
         const settingsBtn = document.getElementById('hw-btn-settings');
         if (settingsBtn) settingsBtn.onclick = function(e) {
             e.stopPropagation();
-            // Open built-in settings panel
             _showSettingsPanel();
         };
         const closeBtn = document.getElementById('hw-btn-close');
@@ -268,7 +489,7 @@
     }
 
     // ================================================================
-    // S E T T I N G S   P A N E L   (built-in, self-contained)
+    // S E T T I N G S   P A N E L
     // ================================================================
     let settingsPanel = null;
     function _showSettingsPanel() {
@@ -281,8 +502,11 @@
         settingsPanel.innerHTML =
             '<div class="hws-header">HW Monitor Settings <span class="hws-close" id="hws-close">\u2715</span></div>' +
             '<div class="hws-body">' +
+                '<div class="hws-row"><label>Base Mode</label><select id="hws-basemode">' +
+                    '<option value="Dark">Dark</option><option value="Light">Light</option>' +
+                '</select></div>' +
                 '<div class="hws-row"><label>Theme</label><select id="hws-theme">' +
-                    Object.keys(THEMES).map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
+                    THEME_NAMES.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
                 '</select></div>' +
                 '<div class="hws-row"><label>Refresh Rate</label><select id="hws-refresh">' +
                     '<option value="500">500ms</option><option value="1000">1s</option><option value="2000">2s</option>' +
@@ -290,37 +514,94 @@
                 '<div class="hws-row"><label>Show on Startup</label><input type="checkbox" id="hws-startup"></div>' +
                 '<div class="hws-row"><label>Bg Opacity</label><input type="range" id="hws-opacity" min="0.1" max="1.0" step="0.05"></div>' +
                 '<div class="hws-row"><label>Compact Mode</label><input type="checkbox" id="hws-compact"></div>' +
+                '<div class="hws-row"><label>Ghost Mode</label><input type="checkbox" id="hws-ghost"></div>' +
+                '<div class="hws-row" id="hws-row-accent" style="display:none"><label>Custom Accent</label><input type="color" id="hws-custom-accent" value="#00ff00"></div>' +
+                '<div class="hws-row" id="hws-row-text" style="display:none"><label>Custom Text</label><input type="color" id="hws-custom-text" value="#ffffff"></div>' +
             '</div>';
         const hwsCss = document.createElement('style');
         hwsCss.textContent =
-            '#bangtrix-hw-settings{position:fixed;top:120px;right:30px;width:240px;background:rgba(18,18,24,0.96);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:100000;color:#ccc;font-size:11px;box-shadow:0 4px 20px rgba(0,0,0,0.5);}' +
+            '#bangtrix-hw-settings{position:fixed;top:120px;right:30px;width:260px;background:rgba(18,18,24,0.96);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:100000;color:#ccc;font-size:11px;box-shadow:0 4px 20px rgba(0,0,0,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}' +
             '.hws-header{display:flex;justify-content:space-between;padding:8px 12px;font-weight:600;color:#fff;border-bottom:1px solid rgba(255,255,255,0.06);}' +
             '.hws-close{cursor:pointer;color:#888;}' +
             '.hws-close:hover{color:#f44;}' +
             '.hws-body{padding:10px 12px;}' +
-            '.hws-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;}' +
+            '.hws-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;}' +
             '.hws-row label{color:#999;}' +
             '.hws-row select,.hws-row input{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#ddd;border-radius:4px;padding:2px 6px;font-size:11px;}' +
-            '.hws-row select{min-width:160px;}' +
-            '.hws-row input[type=range]{width:100px;}';
+            '.hws-row select{min-width:170px;}' +
+            '.hws-row input[type=range]{width:100px;}' +
+            '.hws-row input[type=color]{width:40px;height:22px;padding:1px;cursor:pointer}';
         document.head.appendChild(hwsCss);
         document.body.appendChild(settingsPanel);
         _syncSettingsPanel();
-        // Bind events
+        // Show custom color rows only when Custom theme is selected
+        function _toggleCustomRows() {
+            var show = document.getElementById('hws-theme').value === 'Custom';
+            document.getElementById('hws-row-accent').style.display = show ? 'flex' : 'none';
+            document.getElementById('hws-row-text').style.display = show ? 'flex' : 'none';
+        }
         document.getElementById('hws-close').onclick = function() { settingsPanel.style.display = 'none'; };
-        document.getElementById('hws-theme').onchange = function() { curTheme = this.value; _saveSetting('Bangtrix.HWMonitor.Theme', curTheme); _applyTheme(); _applyBgOpacity(); };
-        document.getElementById('hws-refresh').onchange = function() { curRefreshMs = Number(this.value) || 1000; _saveSetting('Bangtrix.HWMonitor.RefreshRate', curRefreshMs); restartPolling(); };
-        document.getElementById('hws-startup').onchange = function() { curShowOnStartup = !!this.checked; _saveSetting('Bangtrix.HWMonitor.ShowOnStartup', curShowOnStartup); };
-        document.getElementById('hws-opacity').oninput = function() { curBgOpacity = Number(this.value); _saveSetting('Bangtrix.HWMonitor.BgOpacity', curBgOpacity); _applyBgOpacity(); };
-        document.getElementById('hws-compact').onchange = function() { curCompactMode = !!this.checked; _saveSetting('Bangtrix.HWMonitor.CompactMode', curCompactMode); _applyCompactMode(); };
+        document.getElementById('hws-basemode').onchange = function() {
+            curBaseMode = this.value;
+            _saveSetting('Bangtrix.HWMonitor.BaseMode', curBaseMode);
+            _applyTheme();
+            _syncSettingsPanel();
+        };
+        document.getElementById('hws-theme').onchange = function() {
+            curTheme = this.value;
+            _saveSetting('Bangtrix.HWMonitor.Theme', curTheme);
+            _toggleCustomRows();
+            _applyTheme();
+            _syncSettingsPanel();
+        };
+        document.getElementById('hws-refresh').onchange = function() {
+            curRefreshMs = Number(this.value) || 1000;
+            _saveSetting('Bangtrix.HWMonitor.RefreshRate', curRefreshMs);
+            restartPolling();
+        };
+        document.getElementById('hws-startup').onchange = function() {
+            curShowOnStartup = !!this.checked;
+            _saveSetting('Bangtrix.HWMonitor.ShowOnStartup', curShowOnStartup);
+        };
+        document.getElementById('hws-opacity').oninput = function() {
+            curBgOpacity = Number(this.value);
+            _saveSetting('Bangtrix.HWMonitor.BgOpacity', curBgOpacity);
+            _applyBgOpacity();
+        };
+        document.getElementById('hws-compact').onchange = function() {
+            curCompactMode = !!this.checked;
+            _saveSetting('Bangtrix.HWMonitor.CompactMode', curCompactMode);
+            _applyCompactMode();
+        };
+        document.getElementById('hws-ghost').onchange = function() {
+            curGhostMode = !!this.checked;
+            _saveSetting('Bangtrix.HWMonitor.GhostMode', curGhostMode);
+            _applyGhostMode();
+            _updateDynamicCss();
+        };
+        document.getElementById('hws-custom-accent').oninput = function() {
+            curCustomAccent = this.value;
+            _saveSetting('Bangtrix.HWMonitor.CustomAccent', curCustomAccent);
+            _applyTheme();
+        };
+        document.getElementById('hws-custom-text').oninput = function() {
+            curCustomText = this.value;
+            _saveSetting('Bangtrix.HWMonitor.CustomText', curCustomText);
+            _applyTheme();
+        };
+        _toggleCustomRows();
     }
     function _syncSettingsPanel() {
         if (!settingsPanel) return;
+        document.getElementById('hws-basemode').value = curBaseMode;
         document.getElementById('hws-theme').value = curTheme;
         document.getElementById('hws-refresh').value = curRefreshMs;
         document.getElementById('hws-startup').checked = curShowOnStartup;
         document.getElementById('hws-opacity').value = curBgOpacity;
         document.getElementById('hws-compact').checked = curCompactMode;
+        document.getElementById('hws-ghost').checked = curGhostMode;
+        document.getElementById('hws-custom-accent').value = curCustomAccent;
+        document.getElementById('hws-custom-text').value = curCustomText;
     }
 
     // ================================================================
@@ -404,6 +685,16 @@
         var vramUsed = d.vram_used_mb || 0, vramTotal = d.vram_total_mb || 0, vramPct = d.vram_usage_pct || 0;
         if (vramTotal > 0) { setUtil('hw-vram', (vramUsed / 1024).toFixed(2) + ' / ' + (vramTotal / 1024).toFixed(1) + ' GB', vramPct); setBar('hw-vram-bar', vramPct); }
         else { setUtil('hw-vram', 'N/A', 0); setBar('hw-vram-bar', 0); }
+        // OOM Warning: if VRAM >= 90%, color the bar and value red
+        var vramBar = $id('hw-vram-bar');
+        var vramVal = $id('hw-vram');
+        if (vramPct >= 90) {
+            if (vramBar) vramBar.style.background = '#ff4444';
+            if (vramVal) vramVal.style.color = '#ff4444';
+        } else {
+            if (vramBar) vramBar.style.background = '';
+            if (vramVal) vramVal.style.color = '';
+        }
         var temp = d.temperature || 0;
         if (temp > 0) { setUtil('hw-temp', Number(temp).toFixed(1) + '\u00B0C', temp); setBar('hw-temp-bar', Math.min(temp, 100)); }
         else { setUtil('hw-temp', 'N/A', 0); setBar('hw-temp-bar', 0); }
@@ -433,7 +724,7 @@
     function drawSparkline(values) {
         var canvas = $id('hw-sparkline');
         if (!canvas || values.length < 2) return;
-        var t = THEMES[curTheme] || THEMES["Default (Dark Green)"];
+        const t = _getTheme();
         var ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height, pad = 3;
         ctx.clearRect(0, 0, w, h);
         var dataMax = Math.max.apply(null, values), max = dataMax > 80 ? 100 : (dataMax < 1 ? 100 : dataMax * 1.2);
@@ -452,26 +743,30 @@
     }
 
     // ================================================================
-    // C O M F Y U I   S E T T I N G S   R E G I S T R A T I O N
+    // C O M F Y U I   S E T T I N G S
     // ================================================================
-    // Also register with ComfyUI's native settings dialog so they appear
-    // under Settings -> BangtrixToolkit
     function _registerComfyUISettings() {
         if (!app || !app.ui || !app.ui.settings || !app.ui.settings.addSetting) {
             setTimeout(_registerComfyUISettings, 200);
             return;
         }
         try {
-            // 1. Theme
+            app.ui.settings.addSetting({
+                id: "Bangtrix.HWMonitor.BaseMode",
+                name: "\uD83C\uDF11 HW Monitor Base Mode",
+                type: "combo",
+                defaultValue: "Dark",
+                options: ["Dark", "Light"],
+                onChange: function(v) { curBaseMode = v; _saveSetting("Bangtrix.HWMonitor.BaseMode", v); _applyTheme(); _syncSettingsPanel(); }
+            });
             app.ui.settings.addSetting({
                 id: "Bangtrix.HWMonitor.Theme",
                 name: "\uD83C\uDFA8 HW Monitor Theme",
                 type: "combo",
-                defaultValue: "Default (Dark Green)",
-                options: ["Default (Dark Green)", "Neon Blue", "Crimson Red", "Hacker (Black & Bright Green)"],
-                onChange: function(v) { curTheme = v; _saveSetting("Bangtrix.HWMonitor.Theme", v); _applyTheme(); _applyBgOpacity(); _syncSettingsPanel(); }
+                defaultValue: "Default Green",
+                options: THEME_NAMES,
+                onChange: function(v) { curTheme = v; _saveSetting("Bangtrix.HWMonitor.Theme", v); _applyTheme(); _syncSettingsPanel(); }
             });
-            // 2. Refresh Rate
             app.ui.settings.addSetting({
                 id: "Bangtrix.HWMonitor.RefreshRate",
                 name: "\u23F1\uFE0F HW Monitor Refresh Rate",
@@ -480,7 +775,6 @@
                 options: [500, 1000, 2000],
                 onChange: function(v) { curRefreshMs = Number(v) || 1000; _saveSetting("Bangtrix.HWMonitor.RefreshRate", curRefreshMs); _syncSettingsPanel(); restartPolling(); }
             });
-            // 3. Show on Startup
             app.ui.settings.addSetting({
                 id: "Bangtrix.HWMonitor.ShowOnStartup",
                 name: "\uD83D\uDC41\uFE0F Show HW Monitor on Startup",
@@ -488,7 +782,6 @@
                 defaultValue: true,
                 onChange: function(v) { curShowOnStartup = !!v; _saveSetting("Bangtrix.HWMonitor.ShowOnStartup", curShowOnStartup); _syncSettingsPanel(); }
             });
-            // 4. Background Opacity
             app.ui.settings.addSetting({
                 id: "Bangtrix.HWMonitor.BgOpacity",
                 name: "\uD83D\uDD32 HW Monitor Background Opacity",
@@ -497,7 +790,6 @@
                 attrs: { min: 0.1, max: 1.0, step: 0.05 },
                 onChange: function(v) { curBgOpacity = Number(v) || 0.92; _saveSetting("Bangtrix.HWMonitor.BgOpacity", curBgOpacity); _syncSettingsPanel(); _applyBgOpacity(); }
             });
-            // 5. Compact Mode
             app.ui.settings.addSetting({
                 id: "Bangtrix.HWMonitor.CompactMode",
                 name: "\uD83D\uDCE6 HW Monitor Compact Mode",
@@ -505,7 +797,28 @@
                 defaultValue: false,
                 onChange: function(v) { curCompactMode = !!v; _saveSetting("Bangtrix.HWMonitor.CompactMode", curCompactMode); _syncSettingsPanel(); _applyCompactMode(); }
             });
-            console.log("\uD83D\uDDA5\uFE0F Bangtrix HW Monitor: 5 ComfyUI settings registered \u2705");
+            app.ui.settings.addSetting({
+                id: "Bangtrix.HWMonitor.GhostMode",
+                name: "\uD83D\uDC7B HW Monitor Ghost Mode (Borderless)",
+                type: "boolean",
+                defaultValue: false,
+                onChange: function(v) { curGhostMode = !!v; _saveSetting("Bangtrix.HWMonitor.GhostMode", curGhostMode); _syncSettingsPanel(); _applyGhostMode(); _updateDynamicCss(); }
+            });
+            app.ui.settings.addSetting({
+                id: "Bangtrix.HWMonitor.CustomAccent",
+                name: "\uD83C\uDFA8 Custom Accent Color (Custom theme only)",
+                type: "text",
+                defaultValue: "#00ff00",
+                onChange: function(v) { curCustomAccent = v || "#00ff00"; _saveSetting("Bangtrix.HWMonitor.CustomAccent", curCustomAccent); _syncSettingsPanel(); if (curTheme === 'Custom') _applyTheme(); }
+            });
+            app.ui.settings.addSetting({
+                id: "Bangtrix.HWMonitor.CustomText",
+                name: "\uD83D\uDD8C\uFE0F Custom Text Color (Custom theme only)",
+                type: "text",
+                defaultValue: "#ffffff",
+                onChange: function(v) { curCustomText = v || "#ffffff"; _saveSetting("Bangtrix.HWMonitor.CustomText", curCustomText); _syncSettingsPanel(); if (curTheme === 'Custom') _applyTheme(); }
+            });
+            console.log("\uD83D\uDDA5\uFE0F Bangtrix HW Monitor: 9 ComfyUI settings registered \u2705");
         } catch(e) {
             console.warn("\uD83D\uDDA5\uFE0F ComfyUI settings registration deferred:", e.message);
             setTimeout(_registerComfyUISettings, 500);
@@ -523,7 +836,7 @@
         bindEvents();
         var checkEl = $id('hw-gpu-name'); if (checkEl) checkEl.textContent = "Loading...";
         if (!curShowOnStartup) { isVisible = false; widget.classList.add('hidden'); }
-        _applyTheme(); _applyBgOpacity(); _applyCompactMode();
+        _applyTheme(); _applyCompactMode(); _applyGhostMode();
         if (isVisible) startPolling();
         console.log("\uD83D\uDDA5\uFE0F Bangtrix HW Monitor: widget initialized \u2705");
     }
