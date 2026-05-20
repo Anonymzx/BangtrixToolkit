@@ -74,26 +74,20 @@ pywin32>=306; sys_platform == "win32"
 # untuk binding langsung ke DLL AMD yang sudah terinstall dengan driver.
 #
 # Jika file atiadlxx.dll TIDAK ADA di sistem (misal driver minimal):
-#   Fallback ke AMD Temperature Reader (WMI/PowerShell) atau thermal zone.
+#   Fallback otomatis ke LibreHardwareMonitor (LHM) atau thermal zone.
 #
 # TIDAK ADA package pip yang diperlukan.
 
 # ============================================
-# AMD GPU - Temperature / Fan via pyADLX (RDNA3 SUPPORT)
+# WINDOWS FALLBACK - LibreHardwareMonitor (LHM)
 # ============================================
-# pyadlx -> Membaca metrik sensor Suhu (Temperature) dan Kecepatan
-#           Kipas (Fan) pada GPU AMD modern (termasuk arsitektur RDNA3).
+# LHM -> Solusi paling ampuh untuk membaca sensor Suhu (Temp) dan 
+#        Kecepatan Kipas (Fan) pada arsitektur modern seperti RDNA3 
+#        jika metode ADL bawaan gagal membaca sensor.
 #
-# * AMD dGPU: Sangat direkomendasikan untuk seri RX 7000-series.
-# * NVIDIA / Intel: Tidak relevan.
-#
-# TANPA pyadlx: Fallback ke metode ctypes atiadlxx.dll bawaan (sering
-#               kali gagal di RDNA3) atau WMI/PowerShell.
-#
-# Direkomendasikan untuk pengguna AMD di Windows.
-# Tidak diperlukan di Linux.
-#
-pyadlx; sys_platform == "win32"
+# * Bekerja secara otomatis di background pada Windows.
+# * Memanfaatkan HTTP Server internal LHM atau WMI wrapper.
+# * TIDAK PERLU package pip tambahan!
 
 # ============================================
 # LINUX - ROCm / amdgpu (OTOMATIS - TANPA ROCm)
@@ -117,8 +111,7 @@ pyadlx; sys_platform == "win32"
 # |                       |    pywin32 jika Windows)                           |
 # +-----------------------+----------------------------------------------------+
 # | AMD + APU             | pip install -r requirements.txt                    |
-# |                       |   Lalu pastikan driver AMD terinstall              |
-# |                       |   (atiadlxx.dll akan terdeteksi otomatis)          |
+# |                       |   (LHM & DLL akan diurus sistem secara otomatis)   |
 # +-----------------------+----------------------------------------------------+
 # | NVIDIA                | pip install -r requirements.txt                    |
 # |                       | pip install pynvml                                 |
