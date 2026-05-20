@@ -34,8 +34,9 @@ class PowerShellBackend(MonitorBackend):
 
     def __init__(self):
         super().__init__()
-        self._vram_total = 0
+        self._vram_total = 0          # Dedicated VRAM (UMA buffer for APU) in bytes
         self._vram_total_mb = 0
+        self._shared_vram_total = 0   # Shared system memory for APU in bytes
         self._gpu_name_cached = ""
         self._is_apu = False  # Integrated GPU (APU) flag
         
@@ -153,27 +154,62 @@ class PowerShellBackend(MonitorBackend):
         return None
 
     def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        """Real-time GPU stats via fast Get-Counter + cached temperature."""
+        """Real-time GPU stats via fast Get-Counter + cached temperature.
+        
+        For APU systems, VRAM = Dedicated VRAM + Shared System Memory.
+        The memory_shared field holds shared memory portion.
+        The memory_total reflects combined total.
+        """
         try:
             name = self._gpu_name_cached or "AMD GPU"
+
+            # For APU: use dedicated + shared memory as total VRAM
+            vram_total = self._vram_total
+            shared_total = self._shared_vram_total
+
+            # If APU and we have shared memory info, combine them
+            if self._is_apu:
+                try:
+                    if shared_total == 0:
+                        # Estimate shared memory as 50% of system RAM
+                        try:
+                            import psutil
+                            shared_total = int(psutil.virtual_memory().total * 0.5)
+                            self._shared_vram_total = shared_total
+                        except Exception:
+                            shared_total = 4 * 1024 * 1024 * 1024  # 4GB fallback
+                    vram_total = self._vram_total + shared_total
+                except Exception:
+                    # Fallback: just use dedicated VRAM
+                    logger.debug("PS Backend: shared VRAM calc failed — using dedicated only")
+                    shared_total = 0
+                    vram_total = self._vram_total
+
             stats = AMDGPUStats(
                 gpu_id=gpu_id,
                 gpu_name=name,
-                memory_total=self._vram_total,
+                memory_total=vram_total,
+                memory_shared=shared_total,
+                is_apu=self._is_apu,
                 is_available=True,
             )
 
             # GPU Utilization (REAL-TIME) — using percentage-direct method
             stats.utilization_gpu = self._get_utilization_percent()
 
-            # VRAM Usage — for APU use system memory percentage
+            # VRAM Usage
             if self._is_apu:
+                # For APU: read shared usage + use system RAM percentage
                 import psutil
                 svmem = psutil.virtual_memory()
-                vram_used = int(self._vram_total * (svmem.percent / 100))
-                stats.memory_used = vram_used
-                stats.memory_free = self._vram_total - vram_used
-                stats.utilization_memory = svmem.percent
+                # Estimate the shared portion usage based on system memory pressure
+                shared_used = int(shared_total * (svmem.percent / 100))
+                dedicated_used = self._vram_total  # assume UMA buffer is fully committed
+                stats.memory_used = dedicated_used + shared_used
+                stats.memory_shared = shared_used
+                stats.memory_free = max(0, vram_total - stats.memory_used)
+                if vram_total > 0:
+                    stats.utilization_memory = (stats.memory_used / vram_total) * 100.0
             else:
                 vram_used = self._get_vram_used_fast()
                 if vram_used > 0 and self._vram_total > 0:

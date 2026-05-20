@@ -117,7 +117,7 @@ def _read_ps_thermal() -> tuple[float, int]:
     # Try getting discrete GPU temperature
     ps_gpu = (
         'powershell -NoProfile -Command '
-        '"Get-Counter -Counter \\\"GPU(*)\\\Temperature\\\" '
+                    '"Get-Counter -Counter \\\"GPU(*)\\Temperature\\\" '
         '-ErrorAction SilentlyContinue | Select-Object -ExpandProperty CounterSamples '
         '| Select-Object -First 1 -ExpandProperty CookedValue"'
     )
