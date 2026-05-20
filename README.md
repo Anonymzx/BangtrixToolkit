@@ -197,7 +197,7 @@ If you are using an RX 7000 series GPU, you will reliably get **GPU Name**, **GP
 
 <div align="left">
 
-### 💖 [Support This Project](https://trakteer.id/anonymzx)
+### 💖 [Support This Project](https://ko-fi.com/anonymzx)
 
 If you find this toolkit useful and it improves your ComfyUI workflow, consider supporting its development!
 
