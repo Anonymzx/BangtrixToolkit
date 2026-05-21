@@ -105,10 +105,12 @@ An integrated translation node that converts prompts from **16+ languages** into
 <br>
 
 The HW Monitor integrates directly into the ComfyUI Settings panel. All changes are applied **instantly** — no browser reload required.
+
 <br>
+
 <img width="260" height="344" alt="image" src="https://github.com/user-attachments/assets/004402d9-0298-4cec-a1a9-ee084d6bff31" />
 
-<br> <br>
+<br>
 
 | Setting | Type | Options |
 |---------|------|---------|
