@@ -138,16 +138,16 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
  <img width="265" height="258" alt="image" src="https://github.com/user-attachments/assets/d60f3bbc-4607-4231-948a-1d6faad4d61f" />
  <img width="266" height="258" alt="image" src="https://github.com/user-attachments/assets/3cbb7cd0-ecd9-438d-968b-35e2f1a1efe2" />
  <img width="267" height="258" alt="image" src="https://github.com/user-attachments/assets/b6ca2afe-5bc9-47a1-afc3-8bd469fe67da" />
- <br>
+ <br> <br>
  **Base Theme Light** <br>
  <img width="266" height="265" alt="image" src="https://github.com/user-attachments/assets/f01227ec-e75f-4544-b9bf-cb4bd0727ca2" />
- <br>
+ <br> <br>
  **Custom Themes** <br>
  <img width="538" height="584" alt="image" src="https://github.com/user-attachments/assets/2ef3fb6a-a081-469d-8d49-777f0320d1e0" />
- <br>
+ <br> <br>
 **Compact Mode** <br>
 <img width="264" height="216" alt="image" src="https://github.com/user-attachments/assets/72419998-dcab-4c60-b688-5cde627d342b" />
- <br>
+ <br> <br>
 **Ghost Mode/invisble Background** <br>
 <img width="269" height="264" alt="image" src="https://github.com/user-attachments/assets/ac7d0d2b-f5ca-4a76-902a-bd6b9665a366" />
 </div>
