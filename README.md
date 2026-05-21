@@ -30,7 +30,7 @@ A real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks 
 <br>
 
 <div align="center">
-<img width="264" height="249" alt="image" src="https://github.com/user-attachments/assets/3967ee42-4f6e-40f7-b5fd-e55c21f719a4" />
+<img width="264" height="258" alt="image" src="https://github.com/user-attachments/assets/4e5fb35c-8cf3-4ff9-9a33-1d216d84b674" />
 </div>
 
 <br>
@@ -108,7 +108,7 @@ The HW Monitor integrates directly into the ComfyUI Settings panel. All changes 
 
 <br>
 
-<img width="246" height="237" alt="image" src="https://github.com/user-attachments/assets/57bab366-c238-4653-8580-bd5c9cae3a61" />
+<img width="260" height="344" alt="image" src="https://github.com/user-attachments/assets/004402d9-0298-4cec-a1a9-ee084d6bff31" />
 
 <br>
 
@@ -126,13 +126,30 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 
 <br><br>
 
-# 🎨 Theme Samples
+# 🎨 Theme Samples, Compact Mode, and Ghost Mode
 
 <div align="center">
-<img width="268" height="251" alt="image" src="https://github.com/user-attachments/assets/c9211c90-048f-4263-83b8-2a5cdc79a9d6" /> 
-<img width="266" height="252" alt="image" src="https://github.com/user-attachments/assets/066e7968-1df3-4cec-b9bf-98f9bda1d06c" />
-<img width="268" height="254" alt="image" src="https://github.com/user-attachments/assets/bf4e645f-b83f-41f9-99f5-49adaf63fafa" />
-<img width="269" height="253" alt="image" src="https://github.com/user-attachments/assets/030c8548-f47d-4871-b64a-a18b36d33fea" />
+ 
+ **Themes** <br>
+ <img width="267" height="258" alt="image" src="https://github.com/user-attachments/assets/75bca8f7-102c-4fb1-b162-e660d7e18c82" />
+ <img width="265" height="259" alt="image" src="https://github.com/user-attachments/assets/483666da-2cfc-40c3-9a83-cf1d2b7e9cee" />
+ <img width="266" height="255" alt="image" src="https://github.com/user-attachments/assets/9cfb34da-57ad-401f-b479-23d67d5e5096" />
+ <img width="265" height="258" alt="image" src="https://github.com/user-attachments/assets/741af102-6229-485c-9abd-1f2d95c7af83" />
+ <img width="265" height="258" alt="image" src="https://github.com/user-attachments/assets/d60f3bbc-4607-4231-948a-1d6faad4d61f" />
+ <img width="266" height="258" alt="image" src="https://github.com/user-attachments/assets/3cbb7cd0-ecd9-438d-968b-35e2f1a1efe2" />
+ <img width="267" height="258" alt="image" src="https://github.com/user-attachments/assets/b6ca2afe-5bc9-47a1-afc3-8bd469fe67da" />
+ <br> <br>
+ **Base Theme Light** <br>
+ <img width="266" height="265" alt="image" src="https://github.com/user-attachments/assets/f01227ec-e75f-4544-b9bf-cb4bd0727ca2" />
+ <br> <br>
+ **Custom Themes** <br>
+ <img width="538" height="584" alt="image" src="https://github.com/user-attachments/assets/2ef3fb6a-a081-469d-8d49-777f0320d1e0" />
+ <br> <br>
+**Compact Mode** <br>
+<img width="264" height="216" alt="image" src="https://github.com/user-attachments/assets/72419998-dcab-4c60-b688-5cde627d342b" />
+ <br> <br>
+**Ghost Mode/invisble Background** <br>
+<img width="269" height="264" alt="image" src="https://github.com/user-attachments/assets/ac7d0d2b-f5ca-4a76-902a-bd6b9665a366" />
 </div>
 
 <br><br>
@@ -187,9 +204,10 @@ Since this toolkit was developed and explicitly tested on the specific AMD hardw
 
 If you are using an NVIDIA GPU, an Intel ARC/iGPU, or other AMD GPUs and encounter any issues (such as N/A values, missing sensors, or graphical glitches), please open an issue on GitHub. Kindly include:
 
-A screenshot of the HW Monitor overlay.
+> A screenshot of the HW Monitor overlay.
+> 
+> Your ComfyUI terminal log (showing the backend initialization).
 
-Your ComfyUI terminal log (showing the backend initialization).
 Your feedback is highly appreciated to help patch and perfect the monitoring experience for everyone!
 
 ---
