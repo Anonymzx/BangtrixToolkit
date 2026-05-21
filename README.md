@@ -204,9 +204,9 @@ Since this toolkit was developed and explicitly tested on the specific AMD hardw
 
 If you are using an NVIDIA GPU, an Intel ARC/iGPU, or other AMD GPUs and encounter any issues (such as N/A values, missing sensors, or graphical glitches), please open an issue on GitHub. Kindly include:
 
-A screenshot of the HW Monitor overlay.
+> A screenshot of the HW Monitor overlay.
+> Your ComfyUI terminal log (showing the backend initialization).
 
-Your ComfyUI terminal log (showing the backend initialization).
 Your feedback is highly appreciated to help patch and perfect the monitoring experience for everyone!
 
 ---
