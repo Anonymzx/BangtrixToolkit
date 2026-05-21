@@ -3,120 +3,120 @@
 # ============================================
 # Install ALL:   pip install -r requirements.txt
 # Install MIN:   pip install -r requirements.txt --no-deps
-#                  (hanya aiohttp + requests minimal)
+#                  (only minimal aiohttp + requests)
 #
-# UNIVERSAL (WAJIB untuk semua pengguna)
+# UNIVERSAL (REQUIRED for all users)
 # ============================================
-# aiohttp  -> REST API + WebSocket server untuk HW Monitor overlay
+# aiohttp  -> REST API + WebSocket server for HW Monitor overlay
 # requests  -> Google Translate + GitHub API (LHM download)
-# async-timeout -> kompatibilitas aiohttp
+# async-timeout -> aiohttp compatibility
 #
 aiohttp>=3.8.0
 requests>=2.31.0
 async-timeout>=4.0.0
 
 # ============================================
-# SEMUA PLATFORM - System RAM Monitoring
+# ALL PLATFORMS - System RAM Monitoring
 # ============================================
-# psutil -> Memberikan data RAM sistem yang akurat.
-#           Digunakan oleh FallbackBackend + PDHBackend (APU VRAM proxy).
-# TANPA psutil: Fallback baca /proc/meminfo (Linux) atau tidak ada data RAM.
-# REKOMENDASI: Install untuk SEMUA pengguna
+# psutil -> Provides accurate system RAM data.
+#           Used by FallbackBackend + PDHBackend (APU VRAM proxy).
+# WITHOUT psutil: Fallback reads /proc/meminfo (Linux) or no RAM data.
+# RECOMMENDED: Install for ALL users
 #
 psutil>=5.9.0
 
 # ============================================
 # WINDOWS - Performance Counters (PDH)
 # ============================================
-# pywin32 (win32pdh) -> Membaca GPU Utilization dan VRAM langsung dari
-#                       Windows Performance Counters - SUMBER YANG SAMA
-#                       DENGAN TASK MANAGER. Backend utama untuk Windows.
+# pywin32 (win32pdh) -> Reads GPU Utilization and VRAM directly from
+#                       Windows Performance Counters - THE EXACT SAME SOURCE
+#                       AS TASK MANAGER. Primary backend for Windows.
 #
-# * AMD / APU (Radeon Graphics): PDH adalah backend UTAMA
-# * NVIDIA: PDH adalah fallback jika pynvml tidak terinstall
-# * Intel:  PDH adalah backend UTAMA
+# * AMD / APU (Radeon Graphics): PDH is the PRIMARY backend
+# * NVIDIA: PDH is the fallback if pynvml is not installed
+# * Intel:  PDH is the PRIMARY backend
 #
-# TANPA pywin32: Fallback ke PowerShell (jauh lebih lambat, subprocess tiap detik).
-# WAJIB untuk pengguna Windows.
-# Tidak diperlukan di Linux.
+# WITHOUT pywin32: Fallback to PowerShell (much slower, subprocess every second).
+# REQUIRED for Windows users.
+# Not required on Linux.
 #
 pywin32>=306; sys_platform == "win32"
 
 # ============================================
-# NVIDIA GPU - pynvml (OPSIONAL - KHUSUS NVIDIA)
+# NVIDIA GPU - pynvml (OPTIONAL - NVIDIA ONLY)
 # ============================================
-# pynvml -> Membaca statistik NVIDIA langsung dari NVML (NVIDIA Management
-#           Library). Memberikan data PALING AKURAT untuk GPU NVIDIA:
+# pynvml -> Reads NVIDIA statistics directly from NVML (NVIDIA Management
+#           Library). Provides the MOST ACCURATE data for NVIDIA GPUs:
 #           Utilization, VRAM, Temperature, Fan, Clock, Power.
 #
-# * NVIDIA dGPU: Backend PRIORITAS. JAUH lebih akurat daripada PDH.
-# * AMD / Intel: TIDAK DIPERLUKAN (pynvml hanya untuk NVIDIA).
-# * APU: Tidak relevan (APU AMD tidak punya NVML).
+# * NVIDIA dGPU: PRIORITY backend. MUCH more accurate than PDH.
+# * AMD / Intel: NOT REQUIRED (pynvml is only for NVIDIA).
+# * APU: Not relevant (AMD APUs do not have NVML).
 #
-# TANPA pynvml: Fallback ke PDH (Windows) atau nvidia-smi (Linux).
-#               Data tetap akurat, hanya tidak sedetil pynvml.
+# WITHOUT pynvml: Fallback to PDH (Windows) or nvidia-smi (Linux).
+#               Data remains accurate, just not as detailed as pynvml.
 #
-# Install HANYA jika Anda punya GPU NVIDIA:
+# Install ONLY if you have an NVIDIA GPU:
 #   pip install pynvml
 #
-# pynvml>=11.5.0
+pynvml>=11.5.0
 
 # ============================================
-# AMD GPU - Temperature / Fan via ADL (OTOMATIS)
+# AMD GPU - Temperature / Fan via ADL (AUTOMATIC)
 # ============================================
-# ADL (AMD Display Library) -> Membaca temperature dan fan speed GPU AMD
-#                              langsung dari atiadlxx.dll via ctypes.
+# ADL (AMD Display Library) -> Reads AMD GPU temperature and fan speed
+#                              directly from atiadlxx.dll via ctypes.
 #
-# * AMD dGPU / APU: AKAN BEKERJA OTOMATIS jika atiadlxx.dll ada di sistem
-# * NVIDIA: Tidak relevan
+# * AMD dGPU / APU: WILL WORK AUTOMATICALLY if atiadlxx.dll is in the system
+# * NVIDIA: Not relevant
 #
-# TIDAK PERLU install package apapun! Menggunakan ctypes (stdlib Python)
-# untuk binding langsung ke DLL AMD yang sudah terinstall dengan driver.
+# NO NEED to install any packages! Uses ctypes (Python stdlib)
+# for direct binding to the AMD DLL already installed with the driver.
 #
-# Jika file atiadlxx.dll TIDAK ADA di sistem (misal driver minimal):
-#   Fallback otomatis ke LibreHardwareMonitor (LHM) atau thermal zone.
+# If atiadlxx.dll is NOT FOUND in the system (e.g., minimal driver):
+#   Automatic fallback to LibreHardwareMonitor (LHM) or thermal zone.
 #
-# TIDAK ADA package pip yang diperlukan.
+# NO pip package is required.
 
 # ============================================
-# LINUX - ROCm / amdgpu (OTOMATIS - TANPA ROCm)
+# LINUX - ROCm / amdgpu (AUTOMATIC - NO ROCm REQUIRED)
 # ============================================
-# Backend Linux membaca GPU AMD langsung dari /sys/class/drm/ sysfs.
-# TIDAK PERLU install ROCm, pyrsmi, atau package apapun.
-# Cukup kernel Linux standar dengan driver amdgpu.
+# Linux backend reads AMD GPUs directly from /sys/class/drm/ sysfs.
+# NO NEED to install ROCm, pyrsmi, or any packages.
+# Just a standard Linux kernel with the amdgpu driver.
 #
-# NVIDIA di Linux: Parsing output nvidia-smi via subprocess.
-# TIDAK PERLU package tambahan.
+# NVIDIA on Linux: Parsing nvidia-smi output via subprocess.
+# NO additional packages required.
 
 # ============================================
-# RINGKASAN INSTALASI PER SKENARIO
+# INSTALLATION SUMMARY PER SCENARIO
 # ============================================
 #
 # +-----------------------+----------------------------------------------------+
-# | SKENARIO              | PERINTAH INSTALL                                   |
+# | SCENARIO              | INSTALL COMMAND                                    |
 # +-----------------------+----------------------------------------------------+
-# | SEMUA USER            | pip install -r requirements.txt                    |
-# |   (Rekomendasi)       |   (aiohttp + requests + psutil +                   |
-# |                       |    pywin32 jika Windows)                           |
+# | ALL USERS             | pip install -r requirements.txt                    |
+# |   (Recommended)       |   (aiohttp + requests + psutil +                   |
+# |                       |    pywin32 if Windows)                             |
 # +-----------------------+----------------------------------------------------+
 # | AMD + APU             | pip install -r requirements.txt                    |
-# |                       |   (LHM & DLL akan diurus sistem secara otomatis)   |
+# |                       |   (LHM & DLL handled automatically by the system)  |
 # +-----------------------+----------------------------------------------------+
 # | NVIDIA                | pip install -r requirements.txt                    |
 # |                       | pip install pynvml                                 |
 # +-----------------------+----------------------------------------------------+
 # | Linux AMD             | pip install aiohttp requests psutil                |
-# |                       |   (pywin32 dilewati otomatis di Linux)             |
+# |                       |   (pywin32 automatically skipped on Linux)         |
 # +-----------------------+----------------------------------------------------+
 # | Linux NVIDIA          | pip install aiohttp requests psutil                |
-# |                       | pip install pynvml (opsional)                      |
+# |                       | pip install pynvml (optional)                      |
 # +-----------------------+----------------------------------------------------+
 
 # ============================================
-# VERIFIKASI INSTALASI
+# INSTALLATION VERIFICATION
 # ============================================
-# Setelah install, jalankan:
+# After installation, run:
 #   python -c "from monitor import get_hw_server; srv = get_hw_server(); print('OK')"
 #
-# Jika tidak ada error, backend siap digunakan.
-# Overlay HW Monitor akan muncul di pojok kanan atas browser ComfyUI.
+# If there are no errors, the backend is ready to use.
+# The HW Monitor overlay will appear in the top right corner of the ComfyUI browser.
