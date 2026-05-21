@@ -23,6 +23,10 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 
 A real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks **GPU Name**, **Load (%)**, **VRAM Usage**, **Temperature (°C)**, and **Fan Speed (%)** with animated progress bars and a live sparkline graph. The widget is fully draggable, minimizable, and toggleable via `Ctrl + Shift + M`.
 
+### 🔥 New Quality of Life Additions:
+* 🧹 **One-Click Memory Flush:** Instantly free up VRAM and System RAM directly from the overlay using the clear button. It safely unloads all idle models, clears the PyTorch cache, and triggers Python garbage collection—saving you from Out of Memory (OOM) errors before running heavy upscale workflows.
+* ⚡ **Smart ROCm Smoothing:** Uses an ultra-responsive 500ms polling rate coupled with a custom "Peak Hold / Max Aggregate" algorithm. This ensures accurate tracking of *bursty* AI compute workloads across all GPU engines, completely eliminating the inaccurate "0% usage drops" commonly seen in standard Windows Task Manager monitoring.
+
 <br>
 
 <div align="center">
@@ -110,11 +114,13 @@ The HW Monitor integrates directly into the ComfyUI Settings panel. All changes 
 
 | Setting | Type | Options |
 |---------|------|---------|
-| **🎨 Theme** | Combo | Default Green · Neon Blue · Crimson Red · Hacker (Black & Green) |
+| **🌗 Base Mode** | Combo | Dark · Light |
+| **🎨 Theme** | Combo | Default Green · Neon Blue · Crimson Red · Hacker (Black & Green) · Custom Colors|
 | **⏱️ Refresh Rate** | Combo | 500ms · 1s · 2s |
 | **👁️ Show on Startup** | Boolean | On / Off |
 | **🔲 Background Opacity** | Slider | 0.1 – 1.0 (step 0.05) |
 | **📦 Compact Mode** | Boolean | Hides sparkline graph for minimal footprint |
+| **👻 Ghost Mode** | Boolean | Makes the background completely invisible/transparent |
 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
@@ -131,13 +137,14 @@ Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget h
 
 <br><br>
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Keyboard Shortcuts & Actions
 
-| Action | Shortcut |
+| Action | Control |
 |--------|----------|
 | Show / Hide Overlay | `Ctrl + Shift + M` |
 | Minimize Widget | Click `−` button |
 | Open Settings | Click `⚙` button |
+| **Flush VRAM & RAM** | **Click 🧹 Clear button** |
 | Reposition Widget | Drag the header bar |
 
 </details>
@@ -169,9 +176,23 @@ pip install -r BangtrixToolkit/requirements.txt
 ---
 
 <details>
-<summary><b>⚠️ Important Notes for AMD Users</b> (Click to Expand)</summary>
+<summary><b>⚠️ Compatibility, Testing & Bug Reports</b> (Click to Expand)</summary>
 
 <br>
+
+🧪 Tested explicitly on: **AMD Radeon™ RX 7800 XT** (RDNA3), **AMD Ryzen™ APUs**
+
+🤝 **Call for Feedback (NVIDIA, Intel & Other AMD GPUs):**
+Since this toolkit was developed and explicitly tested on the specific AMD hardware above, the integrations for NVIDIA, Intel, and other AMD GPUs (like RDNA2, Vega, Polaris) are implemented based on official APIs (NVML, sysfs, PDH, ADL).
+
+If you are using an NVIDIA GPU, an Intel ARC/iGPU, or other AMD GPUs and encounter any issues (such as N/A values, missing sensors, or graphical glitches), please open an issue on GitHub. Kindly include:
+
+A screenshot of the HW Monitor overlay.
+
+Your ComfyUI terminal log (showing the backend initialization).
+Your feedback is highly appreciated to help patch and perfect the monitoring experience for everyone!
+
+---
 
 **Why install AMD ROCm / HIP SDK?**
 
@@ -182,8 +203,6 @@ Windows restricts direct access to **temperature** and **fan speed** sensors on 
 After installation, the backend will automatically detect `hipInfo.exe` and `amd-smi` through the `HIP_PATH` environment variable and combine it with live Windows PDH data.
 
 ---
-
-🧪 **Tested explicitly on:** **AMD Radeon™ RX 7800 XT (RDNA3)**
 
 🚨 **Current RDNA3 (RX 7000 Series) Limitation:**
 

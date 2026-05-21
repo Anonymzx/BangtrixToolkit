@@ -6,6 +6,7 @@ Translate Universal + Universal Hardware Monitor Overlay
 """
 
 import asyncio
+import gc
 import importlib
 import logging
 import sys as _sys
@@ -148,6 +149,21 @@ try:
 
         _app.router.add_get("/bangtrix/hw/health", health_handler)
         print("[BANGTRIX] Server extension registered")
+
+        # --- Free Memory endpoint (VRAM & RAM flush) ---
+        async def free_memory_handler(request):
+            """Aggressive memory flush: unload all models -> empty PyTorch cache -> GC collect."""
+            try:
+                import comfy.model_management
+                comfy.model_management.unload_all_models()
+                comfy.model_management.soft_empty_cache()
+                gc.collect()
+                return web.json_response({"status": "success", "message": "Memory freed"})
+            except Exception as e:
+                return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+        _app.router.add_post("/btx/free_memory", free_memory_handler)
+        print("[BANGTRIX] POST /btx/free_memory registered")
 
     else:
         print("[BANGTRIX] PromptServer pending")

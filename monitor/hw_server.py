@@ -23,6 +23,10 @@ import threading
 import time
 from collections import deque
 
+# GPU Utilization smoothing — window size for Peak Hold / Moving Average
+# Prevents sudden drops to 0% caused by PDH engine switching or micro-stutters.
+_UTIL_SMOOTH_WINDOW = 4
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,6 +58,7 @@ class HardwareMonitorServer:
         self.history = deque(maxlen=60)
         self.running = False
         self._task = None
+        self._util_history = deque(maxlen=_UTIL_SMOOTH_WINDOW)  # For GPU % smoothing
 
         # ---- Cache for non-blocking reads ----
         # WARNING: Must contain ALL keys that hw_monitor.js expects.
@@ -123,7 +128,7 @@ class HardwareMonitorServer:
                     self._cache = data
             except Exception as e:
                 logger.error(f"HW Server: update error: {e}")
-            time.sleep(1.0)
+            time.sleep(0.5)
 
     def _fetch_stats(self) -> dict:
         """Fetch stats from backend. Runs inside _update_loop (daemon thread)."""
@@ -156,8 +161,22 @@ class HardwareMonitorServer:
                 }
 
             stats = monitor.get_gpu_stats(0)
-            util = round(float(stats.utilization_gpu or 0), 1)
-            self.history.append(util)
+            raw_util = round(float(stats.utilization_gpu or 0), 1)
+            self.history.append(raw_util)
+
+            # === GPU Utilization Smoothing (Peak Hold) ===
+            # Task Manager uses internal averaging. We use a simple Peak Hold
+            # over the last N samples to prevent sudden drops to 0% caused by
+            # engine switching (3D <-> Compute) or PDH micro-stutters.
+            # VRAM, Temp, Fan are NOT affected — they bypass this logic.
+            self._util_history.append(raw_util)
+            util = max(self._util_history)  # Peak Hold: take the highest value in window
+            # Additional floor: if raw is 0 but smoothed value just dropped from >0,
+            # hold it briefly. The deque maxlen handles the decay automatically.
+            if util < 0.5 and raw_util > 0:
+                # Rare edge case — keep the raw value if it's rising
+                util = raw_util
+            util = round(util, 1)
 
             temp = round(float(stats.temperature or 0), 1)
             fan = int(stats.fan_speed or 0)

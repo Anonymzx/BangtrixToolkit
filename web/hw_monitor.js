@@ -186,7 +186,7 @@
     let pollInterval = null, pollRetries = 0;
     const MAX_RETRIES = 30;
 
-    let curTheme = "Default Green", curBaseMode = "Dark", curRefreshMs = 1000;
+    let curTheme = "Default Green", curBaseMode = "Dark", curRefreshMs = 500;
     let curShowOnStartup = true, curBgOpacity = 0.92, curCompactMode = false, curGhostMode = false;
     let curCustomAccent = "#00ff00", curCustomText = "#ffffff";
 
@@ -393,6 +393,7 @@
                 '<div class="hw-status-bar">' +
                     '<span class="hw-status" id="hw-status">Starting...</span>' +
                     '<span class="hw-method" id="hw-method"></span>' +
+                    '<button class="hw-btn hw-btn-clear" id="hw-btn-clear" title="Free VRAM & RAM">🧹 Clear</button>' +
                 '</div>' +
             '</div>';
         const baseCss = document.createElement('style');
@@ -413,12 +414,16 @@
             '.hw-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}' +
             '.hw-stat{display:flex;flex-direction:column;gap:1px}' +
             '.hw-stat-label{font-size:9px;text-transform:uppercase}' +
-            '.hw-stat-value{font-weight:600;font-size:12px}' +
+            '.hw-stat-value{font-weight:600;font-size:12px;transition:all 0.2s ease-in-out}' +
             '.hw-bar{height:4px;border-radius:2px;overflow:hidden}' +
             '.hw-fill{height:100%;width:0%;border-radius:2px}' +
             '.hw-sparkline-container{margin-top:6px}' +
             '.hw-sparkline{width:100%;height:36px;border-radius:4px}' +
-            '.hw-status-bar{display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;font-size:9px}' +
+            '.hw-status-bar{display:flex;align-items:center;margin-top:6px;padding-top:6px;font-size:9px}' +
+            '.hw-method{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 4px}' +
+            '.hw-btn-clear{flex-shrink:0;width:auto;padding:0 6px;font-size:10px;background:rgba(255,255,255,0.06)}' +
+            '.hw-btn-clear:hover{background:rgba(0,255,100,0.2)!important;color:#0f0}' +
+            '.hw-btn-clear:disabled{background:rgba(255,255,255,0.04)}' +
             '.hw-status.live{animation:livePulse 1.5s infinite}' +
             '.hw-status.loading{color:#ffaa00;animation:loadingPulse 1s infinite}' +
             '@keyframes loadingPulse{0%,100%{opacity:1}50%{opacity:0.4}}' +
@@ -480,6 +485,36 @@
             widget.classList.add('hidden');
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         };
+
+        // --- Free Memory button ---
+        const clearBtn = document.getElementById('hw-btn-clear');
+        if (clearBtn) clearBtn.onclick = function() {
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = '⏳';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'wait';
+            fetch('/btx/free_memory', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    btn.textContent = data.status === 'success' ? '✅' : '❌';
+                    btn.style.opacity = '1';
+                    btn.style.cursor = '';
+                    setTimeout(function() {
+                        btn.textContent = '🧹 Clear';
+                        btn.disabled = false;
+                    }, 2000);
+                })
+                .catch(function() {
+                    btn.textContent = '❌';
+                    btn.style.opacity = '1';
+                    btn.style.cursor = '';
+                    setTimeout(function() {
+                        btn.textContent = '🧹 Clear';
+                        btn.disabled = false;
+                    }, 2000);
+                });
+        };
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.shiftKey && e.key === 'M') {
                 e.preventDefault();
@@ -511,7 +546,7 @@
                     THEME_NAMES.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
                 '</select></div>' +
                 '<div class="hws-row"><label>Refresh Rate</label><select id="hws-refresh">' +
-                    '<option value="500">500ms</option><option value="1000">1s</option><option value="2000">2s</option>' +
+                    '<option value="500">500ms</option><option value="1000">1s</option><option value="2000">2s</option><option value="250">250ms</option>' +
                 '</select></div>' +
                 '<div class="hws-row"><label>Show on Startup</label><input type="checkbox" id="hws-startup"></div>' +
                 '<div class="hws-row"><label>Bg Opacity</label><input type="range" id="hws-opacity" min="0.1" max="1.0" step="0.05"></div>' +
@@ -807,7 +842,7 @@
                 name: "\u23F1\uFE0F HW Monitor Refresh Rate",
                 type: "combo",
                 defaultValue: 1000,
-                options: [500, 1000, 2000],
+                options: [250, 500, 1000, 2000],
                 onChange: function(v) { curRefreshMs = Number(v) || 1000; _saveSetting("Bangtrix.HWMonitor.RefreshRate", curRefreshMs); _syncSettingsPanel(); restartPolling(); }
             });
             app.ui.settings.addSetting({
