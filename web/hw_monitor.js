@@ -189,6 +189,7 @@
     let curTheme = "Default Green", curBaseMode = "Dark", curRefreshMs = 500;
     let curShowOnStartup = true, curBgOpacity = 0.92, curCompactMode = false, curGhostMode = false;
     let curCustomAccent = "#00ff00", curCustomText = "#ffffff";
+    let curUiScale = 1.0;
 
     // ================================================================
     // T H E M E   H E L P E R
@@ -209,17 +210,19 @@
                 const m = c.style.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
                 if (m) acRgb = m[1] + "," + m[2] + "," + m[3];
             } catch(e) {}
-            const statVal = curBaseMode === "Light" ? curCustomText : "#fff";
-            const valColor = curBaseMode === "Light" ? "#222" : statVal;
+            // Custom theme: ALWAYS use curCustomText for text colors — never force black.
+            // The user explicitly chose this color, respect it in both Light and Dark modes.
+            const txtColor = curCustomText;
+            const valColor = curCustomText;
             colors = {
                 bg: base.bg, accent: curCustomAccent, accentRgb: acRgb,
                 accentWarm: base.accentWarm, accentCrit: base.accentCrit,
-                gpuName: curCustomAccent, fillBar: curCustomAccent,
+                gpuName: txtColor, fillBar: curCustomAccent,
                 tempGrad: "linear-gradient(90deg," + curCustomAccent + "," + base.accentWarm + "," + base.accentCrit + ")",
                 sparklineLine: curCustomAccent, sparklineTop: "rgba(" + acRgb + ",0.27)",
                 sparklineBot: "rgba(" + acRgb + ",0.03)",
-                liveColor: curCustomAccent, vendorColor: base.labelColor,
-                labelColor: base.labelColor, statValueColor: valColor,
+                liveColor: txtColor, vendorColor: txtColor,
+                labelColor: txtColor, statValueColor: valColor,
                 headerBg: "rgba(" + acRgb + ",0.08)",
                 glowColor: acRgb, neonIntensity: 1
             };
@@ -257,6 +260,7 @@
             if (s['Bangtrix.HWMonitor.GhostMode'] != null) curGhostMode = !!s['Bangtrix.HWMonitor.GhostMode'];
             if (s['Bangtrix.HWMonitor.CustomAccent']) curCustomAccent = s['Bangtrix.HWMonitor.CustomAccent'];
             if (s['Bangtrix.HWMonitor.CustomText']) curCustomText = s['Bangtrix.HWMonitor.CustomText'];
+            if (s['Bangtrix.HWMonitor.UiScale'] != null) curUiScale = Number(s['Bangtrix.HWMonitor.UiScale']) || 1.0;
         } catch(e) {}
     }
 
@@ -294,6 +298,12 @@
                 '.hw-title{text-shadow:0 0 10px rgba(' + t.glowColor + ',0.2)}';
         }
 
+        const btnColor = isTextDark ? '#000' : '#ccc';
+        const btnClearColor = isTextDark ? '#000' : '#ccc';
+        const methodColor = isTextDark ? '#000' : '#ccc';
+        const liveColor = isTextDark ? '#000' : t.liveColor;
+        const iconColor = isTextDark ? '#000' : 'inherit';
+
         dynamicCss.textContent =
             '#bangtrix-hw-monitor{background:' + t.bg + ';' +
             'border:1px solid rgba(' + t.accentRgb + ',0.25);' +
@@ -312,13 +322,18 @@
             '.hw-fill.hw-temp-fill{background:' + t.tempGrad + '}' +
             '.hw-bar{background:' + barBg + ';transition:background 0.3s ease;}' +
             '#bangtrix-hw-monitor,.hw-header,.hw-body{transition:all 0.3s ease;}' +
-            '.hw-status.live{color:' + t.liveColor + ';transition:color 0.3s ease;}' +
+            '.hw-status.live{color:' + liveColor + '!important;transition:color 0.3s ease;}' +
             '.hw-status.err{color:' + t.accentCrit + '}' +
             '.hw-sparkline{background:' + sparklineBg + ';transition:background 0.3s ease;}' +
             '.hw-status-bar{border-top:1px solid ' + statusBorderTop + ';transition:border-color 0.3s ease;}' +
-            '.hw-btn{transition:all 0.2s ease;}' +
+            '.hw-btn{color:' + btnColor + '!important;transition:all 0.2s ease;}' +
+            '.hw-btn:hover{color:' + btnColor + '!important;}' +
+            '.hw-btn-close:hover{color:' + btnColor + '!important;}' +
+            '.hw-btn-clear{color:' + btnClearColor + '!important;}' +
+            '.hw-btn-clear:hover{color:' + btnClearColor + '!important;}' +
+            '.hw-method{color:' + methodColor + '!important;}' +
             '.hw-title{color:' + textMain + ';transition:color 0.3s ease;}' +
-            '.hw-icon{transition:color 0.3s ease;}' +
+            '.hw-icon{color:' + iconColor + '!important;transition:color 0.3s ease;}' +
             glowExtra;
     }
     function _applyTheme() {
@@ -340,6 +355,12 @@
         if (!widget) return;
         const sc = widget.querySelector('.hw-sparkline-container');
         if (sc) sc.style.display = curCompactMode ? 'none' : '';
+    }
+    function _applyUiScale() {
+        if (!widget) return;
+        var s = Math.max(0.5, Math.min(2.0, curUiScale || 1.0));
+        widget.style.transform = 'scale(' + s + ')';
+        widget.style.transformOrigin = 'top right';
     }
     function _applyGhostMode() {
         if (!widget) return;
@@ -431,6 +452,7 @@
         document.head.appendChild(baseCss);
         document.body.appendChild(widget);
         makeDraggable();
+        _applyUiScale();
     }
 
     // ================================================================
@@ -554,6 +576,7 @@
                 '<div class="hws-row"><label>Ghost Mode</label><input type="checkbox" id="hws-ghost"></div>' +
                 '<div class="hws-row" id="hws-row-accent" style="display:none"><label>Custom Accent</label><input type="color" id="hws-custom-accent" value="#00ff00"></div>' +
                 '<div class="hws-row" id="hws-row-text" style="display:none"><label>Custom Text</label><input type="color" id="hws-custom-text" value="#ffffff"></div>' +
+                '<div class="hws-row"><label>UI Scale</label><input type="range" id="hws-scale" min="0.5" max="2.0" step="0.1"><span id="hws-scale-val" style="min-width:32px;text-align:right;color:#ddd;font-size:11px">1.0x</span></div>' +
             '</div>';
         const hwsCss = document.createElement('style');
         hwsCss.textContent =
@@ -621,6 +644,12 @@
             _saveSetting('Bangtrix.HWMonitor.CustomAccent', curCustomAccent);
             _applyTheme();
         };
+        document.getElementById('hws-scale').oninput = function() {
+            curUiScale = Number(this.value);
+            _saveSetting('Bangtrix.HWMonitor.UiScale', curUiScale);
+            document.getElementById('hws-scale-val').textContent = curUiScale.toFixed(1) + 'x';
+            _applyUiScale();
+        };
         document.getElementById('hws-custom-text').oninput = function() {
             curCustomText = this.value;
             _saveSetting('Bangtrix.HWMonitor.CustomText', curCustomText);
@@ -639,6 +668,8 @@
         document.getElementById('hws-ghost').checked = curGhostMode;
         document.getElementById('hws-custom-accent').value = curCustomAccent;
         document.getElementById('hws-custom-text').value = curCustomText;
+        document.getElementById('hws-scale').value = curUiScale;
+        document.getElementById('hws-scale-val').textContent = curUiScale.toFixed(1) + 'x';
     }
 
     // ================================================================
