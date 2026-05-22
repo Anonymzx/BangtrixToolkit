@@ -108,7 +108,7 @@ The HW Monitor integrates directly into the ComfyUI Settings panel. All changes 
 
 <br>
 
-<img width="260" height="344" alt="image" src="https://github.com/user-attachments/assets/004402d9-0298-4cec-a1a9-ee084d6bff31" />
+<img width="272" height="387" alt="image" src="https://github.com/user-attachments/assets/e1e187f2-e967-4dd8-86c0-5a6d211a5c0c" />
 
 <br>
 
