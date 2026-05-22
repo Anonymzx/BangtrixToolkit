@@ -121,6 +121,7 @@ The HW Monitor integrates directly into the ComfyUI Settings panel. All changes 
 | **🔲 Background Opacity** | Slider | 0.1 – 1.0 (step 0.05) |
 | **📦 Compact Mode** | Boolean | Hides sparkline graph for minimal footprint |
 | **👻 Ghost Mode** | Boolean | Makes the background completely invisible/transparent |
+| **🔍 UI Scale** | Slider | 0.5x (50%) – 2.0x (200%), step 0.1 — Zoom the entire widget for high-DPI (4K) displays or improved readability |
 
 Access the settings by clicking the **⚙ gear icon** on the HW Monitor widget header.
 
