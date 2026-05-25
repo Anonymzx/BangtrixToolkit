@@ -202,9 +202,10 @@ pip install -r BangtrixToolkit/requirements.txt
 
 ✅ **AMD Radeon™ RX 7800 XT (RDNA3) & Ryzen™ APUs:** Explicitly tested and verified natively by the author.
 
-✅ **NVIDIA GPUs:** Successfully tested and verified to work flawlessly by a community user on Reddit (Tested on **RTX 3090 / Linux**)! 🎉
+✅ **NVIDIA GPUs:** Successfully tested and verified to work flawlessly by a community user on Reddit (Tested on **RTX 3090 / Linux**)!
 
 ⏳ **Intel ARC / iGPU & Legacy AMD:** Implemented via official APIs, currently awaiting community feedback.
+
 
 🤝 **Call for Feedback (NVIDIA, Intel & Other AMD GPUs):**
 Since this toolkit was developed and explicitly tested on the specific AMD hardware above, the integrations for NVIDIA, Intel, and other AMD GPUs (like RDNA2, Vega, Polaris) are implemented based on official APIs (NVML, sysfs, PDH, ADL).
