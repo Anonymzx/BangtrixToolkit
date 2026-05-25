@@ -206,6 +206,7 @@ pip install -r BangtrixToolkit/requirements.txt
 
 ⏳ **Intel ARC / iGPU & Legacy AMD:** Implemented via official APIs, currently awaiting community feedback.
 
+<br>
 
 🤝 **Call for Feedback (NVIDIA, Intel & Other AMD GPUs):**
 Since this toolkit was developed and explicitly tested on the specific AMD hardware above, the integrations for NVIDIA, Intel, and other AMD GPUs (like RDNA2, Vega, Polaris) are implemented based on official APIs (NVML, sysfs, PDH, ADL).
