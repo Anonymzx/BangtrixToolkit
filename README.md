@@ -202,7 +202,7 @@ pip install -r BangtrixToolkit/requirements.txt
 
 ✅ **AMD Radeon™ RX 7800 XT (RDNA3) & Ryzen™ APUs:** Explicitly tested and verified natively by the author.
 
-✅ **NVIDIA GPUs:** Successfully tested and verified to work flawlessly by a community user on Reddit (Tested on **RTX 3090 / Linux**)!
+✅ **NVIDIA GPUs:** Successfully tested and verified to work flawlessly by a community user on [Reddit](https://www.reddit.com/r/comfyui/comments/1tjtn9b/built_an_incanvas_hardware_monitor_prompt/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button) (Tested on **RTX 3090 / Linux**)!
 
 ⏳ **Intel ARC / iGPU & Legacy AMD:** Implemented via official APIs, currently awaiting community feedback.
 
