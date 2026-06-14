@@ -144,9 +144,6 @@ A lightweight, standalone translation node that converts text from **100+ langua
 | `cy` | Welsh | `xh` | Xhosa | `yi` | Yiddish | `yo` | Yoruba |
 | `zu` | Zulu | | | | | | |
 
-**Inputs:** Text (multiline), Source Language, Target Language  
-**Output:** Translated text (STRING)  
-**Category:** `BangtrixToolkit`
 
 <br>
 
