@@ -52,19 +52,38 @@ No third-party background applications are required — the backend relies only 
 
 # 🌐 Universal Prompt Translator
 
-An integrated translation node that converts prompts from **16+ languages** into English and directly outputs CLIP conditioning.
+An integrated translation node that converts prompts from **100+ languages** into English and directly outputs CLIP conditioning.
 
-| Code | Language | Code | Language |
-|------|----------|------|----------|
-| `auto` | Auto Detect | `en` | English |
-| `id` | Indonesian | `ja` | Japanese |
-| `ko` | Korean | `zh-CN` | Chinese (Simplified) |
-| `zh-TW` | Chinese (Traditional) | `fr` | French |
-| `de` | German | `es` | Spanish |
-| `pt` | Portuguese | `ru` | Russian |
-| `it` | Italian | `ar` | Arabic |
-| `tr` | Turkish | `hi` | Hindi |
-| `th` | Thai | `vi` | Vietnamese |
+| Code | Language | Code | Language | Code | Language | Code | Language |
+|------|----------|------|----------|------|----------|------|----------|
+| `auto` | Auto Detect | `en` | English | `id` | Indonesian | `ja` | Japanese |
+| `ko` | Korean | `zh-CN` | Chinese (Simplified) | `zh-TW` | Chinese (Traditional) | `fr` | French |
+| `de` | German | `es` | Spanish | `pt` | Portuguese | `ru` | Russian |
+| `it` | Italian | `ar` | Arabic | `tr` | Turkish | `hi` | Hindi |
+| `th` | Thai | `vi` | Vietnamese | `af` | Afrikaans | `sq` | Albanian |
+| `am` | Amharic | `hy` | Armenian | `az` | Azerbaijani | `eu` | Basque |
+| `be` | Belarusian | `bn` | Bengali | `bs` | Bosnian | `bg` | Bulgarian |
+| `ca` | Catalan | `ceb` | Cebuano | `ny` | Chichewa | `co` | Corsican |
+| `hr` | Croatian | `cs` | Czech | `da` | Danish | `nl` | Dutch |
+| `eo` | Esperanto | `et` | Estonian | `tl` | Filipino | `fi` | Finnish |
+| `fy` | Frisian | `gl` | Galician | `ka` | Georgian | `el` | Greek |
+| `gu` | Gujarati | `ht` | Haitian Creole | `ha` | Hausa | `haw` | Hawaiian |
+| `iw` | Hebrew | `hmn` | Hmong | `hu` | Hungarian | `is` | Icelandic |
+| `ig` | Igbo | `ga` | Irish | `jw` | Javanese | `kn` | Kannada |
+| `kk` | Kazakh | `km` | Khmer | `ku` | Kurdish | `ky` | Kyrgyz |
+| `lo` | Lao | `la` | Latin | `lv` | Latvian | `lt` | Lithuanian |
+| `lb` | Luxembourgish | `mk` | Macedonian | `mg` | Malagasy | `ms` | Malay |
+| `ml` | Malayalam | `mt` | Maltese | `mi` | Maori | `mr` | Marathi |
+| `mn` | Mongolian | `my` | Myanmar (Burmese) | `ne` | Nepali | `no` | Norwegian |
+| `ps` | Pashto | `fa` | Persian | `pl` | Polish | `pt` | Portuguese |
+| `pa` | Punjabi | `ro` | Romanian | `sm` | Samoan | `gd` | Scots Gaelic |
+| `sr` | Serbian | `st` | Sesotho | `sn` | Shona | `sd` | Sindhi |
+| `si` | Sinhala | `sk` | Slovak | `sl` | Slovenian | `so` | Somali |
+| `su` | Sundanese | `sw` | Swahili | `sv` | Swedish | `tg` | Tajik |
+| `ta` | Tamil | `te` | Telugu | `th` | Thai | `tr` | Turkish |
+| `uk` | Ukrainian | `ur` | Urdu | `uz` | Uzbek | `vi` | Vietnamese |
+| `cy` | Welsh | `xh` | Xhosa | `yi` | Yiddish | `yo` | Yoruba |
+| `zu` | Zulu | | | | | | |
 
 <br>
 
@@ -88,8 +107,50 @@ An integrated translation node that converts prompts from **16+ languages** into
 
 <br>
 
-## 📸 Sample Workflow
+<br>
 
+# 🌐 Bangtrix Simple Translate
+
+A lightweight, standalone translation node that converts text from **100+ languages** using the Google Translate API — no CLIP encoding, no prompts. Perfect for simple text translation tasks.
+
+| Code | Language | Code | Language | Code | Language | Code | Language |
+|------|----------|------|----------|------|----------|------|----------|
+| `auto` | Auto Detect | `en` | English | `id` | Indonesian | `ja` | Japanese |
+| `ko` | Korean | `zh-CN` | Chinese (Simplified) | `zh-TW` | Chinese (Traditional) | `fr` | French |
+| `de` | German | `es` | Spanish | `pt` | Portuguese | `ru` | Russian |
+| `it` | Italian | `ar` | Arabic | `tr` | Turkish | `hi` | Hindi |
+| `th` | Thai | `vi` | Vietnamese | `af` | Afrikaans | `sq` | Albanian |
+| `am` | Amharic | `hy` | Armenian | `az` | Azerbaijani | `eu` | Basque |
+| `be` | Belarusian | `bn` | Bengali | `bs` | Bosnian | `bg` | Bulgarian |
+| `ca` | Catalan | `ceb` | Cebuano | `ny` | Chichewa | `co` | Corsican |
+| `hr` | Croatian | `cs` | Czech | `da` | Danish | `nl` | Dutch |
+| `eo` | Esperanto | `et` | Estonian | `tl` | Filipino | `fi` | Finnish |
+| `fy` | Frisian | `gl` | Galician | `ka` | Georgian | `el` | Greek |
+| `gu` | Gujarati | `ht` | Haitian Creole | `ha` | Hausa | `haw` | Hawaiian |
+| `iw` | Hebrew | `hmn` | Hmong | `hu` | Hungarian | `is` | Icelandic |
+| `ig` | Igbo | `ga` | Irish | `it` | Italian | `jw` | Javanese |
+| `kn` | Kannada | `kk` | Kazakh | `km` | Khmer | `ku` | Kurdish |
+| `ky` | Kyrgyz | `lo` | Lao | `la` | Latin | `lv` | Latvian |
+| `lt` | Lithuanian | `lb` | Luxembourgish | `mk` | Macedonian | `mg` | Malagasy |
+| `ms` | Malay | `ml` | Malayalam | `mt` | Maltese | `mi` | Maori |
+| `mr` | Marathi | `mn` | Mongolian | `my` | Myanmar (Burmese) | `ne` | Nepali |
+| `no` | Norwegian | `ps` | Pashto | `fa` | Persian | `pl` | Polish |
+| `pa` | Punjabi | `ro` | Romanian | `sm` | Samoan | `gd` | Scots Gaelic |
+| `sr` | Serbian | `st` | Sesotho | `sn` | Shona | `sd` | Sindhi |
+| `si` | Sinhala | `sk` | Slovak | `sl` | Slovenian | `so` | Somali |
+| `su` | Sundanese | `sw` | Swahili | `sv` | Swedish | `tg` | Tajik |
+| `ta` | Tamil | `te` | Telugu | `th` | Thai | `tr` | Turkish |
+| `uk` | Ukrainian | `ur` | Urdu | `uz` | Uzbek | `vi` | Vietnamese |
+| `cy` | Welsh | `xh` | Xhosa | `yi` | Yiddish | `yo` | Yoruba |
+| `zu` | Zulu | | | | | | |
+
+**Inputs:** Text (multiline), Source Language, Target Language  
+**Output:** Translated text (STRING)  
+**Category:** `BangtrixToolkit`
+
+<br>
+
+## 📸 Sample Workflow
 <div align="center">
 <img width="570" alt="Workflow" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
 <br><br>
@@ -117,7 +178,7 @@ The HW Monitor integrates directly into the ComfyUI Settings panel. All changes 
 | **🌗 Base Mode** | Combo | Dark · Light |
 | **🎨 Theme** | Combo | Default Green · Neon Blue · Crimson Red · Hacker (Black & Green) · Custom Colors|
 | **⏱️ Refresh Rate** | Combo | 500ms · 1s · 2s |
-| **👁️ Show on Startup** | Boolean | On / Off |
+| **�️ Show on Startup** | Boolean | On / Off |
 | **🔲 Background Opacity** | Slider | 0.1 – 1.0 (step 0.05) |
 | **📦 Compact Mode** | Boolean | Hides sparkline graph for minimal footprint |
 | **👻 Ghost Mode** | Boolean | Makes the background completely invisible/transparent |

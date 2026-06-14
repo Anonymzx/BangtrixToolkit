@@ -36,6 +36,15 @@ try:
 except Exception as e:
     print(f"[BANGTRIX] Skipped translate_universal: {e}")
 
+try:
+    _mod = importlib.import_module(".btx_nodes.bangtrix_simple_translate", package=__package__)
+    if hasattr(_mod, "NODE_CLASS_MAPPINGS"):
+        NODE_CLASS_MAPPINGS.update(_mod.NODE_CLASS_MAPPINGS)
+    if hasattr(_mod, "NODE_DISPLAY_NAME_MAPPINGS"):
+        NODE_DISPLAY_NAME_MAPPINGS.update(_mod.NODE_DISPLAY_NAME_MAPPINGS)
+    print("[BANGTRIX] Loaded bangtrix_simple_translate")
+except Exception as e:
+    print(f"[BANGTRIX] Skipped bangtrix_simple_translate: {e}")
 WEB_DIRECTORY = "web"
 
 __all__ = [
