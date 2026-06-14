@@ -151,6 +151,8 @@ A lightweight, standalone translation node that converts text from **100+ langua
 <div align="center">
 <img width="570" alt="Workflow" src="https://github.com/user-attachments/assets/44a6aeb5-1b15-4461-be2c-ec98291ac2e9" />
 <br><br>
+ <img width="1019" height="399" alt="image" src="https://github.com/user-attachments/assets/e48f6fc2-52ee-4431-ada1-a5ecbf36a531" />
+<br><br>
 <img width="900" alt="Workflow detail" src="https://github.com/user-attachments/assets/36b098b9-4a4e-4787-aaea-8f249674a151" />
 </div>
 
