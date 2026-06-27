@@ -1,14 +1,18 @@
 import json
 import hashlib
 import requests
+from collections import OrderedDict
 
 from nodes import CLIPTextEncode
 
 # =========================================
 # CACHE
 # =========================================
-
-_translate_cache = {}
+# Bounded LRU — prevents the cache from growing without bound in long-running
+# ComfyUI sessions. 1024 entries is roughly the size of a book; eviction is
+# LRU so prompts the user revisits stay cached.
+_TRANSLATE_CACHE_MAX = 1024
+_translate_cache: "OrderedDict[str, str]" = OrderedDict()
 
 # =========================================
 # LANGUAGES
@@ -134,6 +138,8 @@ def process_text(
     if enable_translate:
 
         if enable_cache and key in _translate_cache:
+            # move_to_end keeps the LRU order honest — recently used at the back
+            _translate_cache.move_to_end(key)
             translated = _translate_cache[key]
 
         else:
@@ -145,6 +151,10 @@ def process_text(
 
             if enable_cache:
                 _translate_cache[key] = translated
+                # Evict oldest entry if we've blown past the cap. OrderedDict's
+                # popitem(last=False) is O(1).
+                if len(_translate_cache) > _TRANSLATE_CACHE_MAX:
+                    _translate_cache.popitem(last=False)
 
     else:
         translated = original
@@ -280,7 +290,7 @@ class BangtrixTranslateUniversal:
 
     FUNCTION = "process"
 
-    CATEGORY = "Bangtrix Toolkit/Translate"
+    CATEGORY = "BangtrixToolkit"
 
     # =========================================
     # PROCESS

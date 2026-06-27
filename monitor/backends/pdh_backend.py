@@ -25,7 +25,7 @@ import platform
 import time
 from typing import Optional
 
-from .base import MonitorBackend, AMDGPUStats
+from .base import MonitorBackend, HardwareStats
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)  # Suppress INFO/DEBUG spam from PDH backend
@@ -545,7 +545,7 @@ if ($gpu) {
 
     def _try_init_adl(self):
         try:
-            from ..utils.amd_adl import get_adl_context
+            from ..backends.adl_utils import get_adl_context
             self._adl_ctx = get_adl_context()
             if self._adl_ctx.available:
                 self._adl_available = True
@@ -615,7 +615,7 @@ if ($gpu) {
             logger.debug(f"PDH: APU VRAM proxy error: {e}")
         return 0
 
-    def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
+    def get_stats(self, gpu_id: int = 0) -> HardwareStats:
         """Get GPU stats. APU-optimized with wildcard summation + psutil proxy.
         
         For APU systems:
@@ -644,7 +644,7 @@ if ($gpu) {
                 vram_total = self._vram_total
                 shared_pool = self._shared_vram_total
 
-            stats = AMDGPUStats(
+            stats = HardwareStats(
                 gpu_id=gpu_id,
                 gpu_name=self.gpu_names[0] if self.gpu_names else "AMD GPU",
                 memory_total=vram_total,
@@ -699,7 +699,7 @@ if ($gpu) {
 
         except Exception as e:
             logger.error(f"PDH get_stats error: {e}")
-            return AMDGPUStats(
+            return HardwareStats(
                 gpu_id=gpu_id,
                 gpu_name=self.gpu_names[0] if self.gpu_names else "AMD GPU",
                 is_available=False,

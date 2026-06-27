@@ -21,7 +21,7 @@ import time
 
 from typing import Optional
 
-from .base import MonitorBackend, AMDGPUStats
+from .base import MonitorBackend, HardwareStats
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class PowerShellBackend(MonitorBackend):
             pass
         return None
 
-    def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
+    def get_stats(self, gpu_id: int = 0) -> HardwareStats:
         """Real-time GPU stats via fast Get-Counter + cached temperature.
         
         For APU systems, VRAM = Dedicated VRAM + Shared System Memory.
@@ -185,7 +185,7 @@ class PowerShellBackend(MonitorBackend):
                     shared_total = 0
                     vram_total = self._vram_total
 
-            stats = AMDGPUStats(
+            stats = HardwareStats(
                 gpu_id=gpu_id,
                 gpu_name=name,
                 memory_total=vram_total,
@@ -232,7 +232,7 @@ class PowerShellBackend(MonitorBackend):
             return stats
         except Exception as e:
             logger.error(f"PS Backend get_stats error: {e}")
-            return AMDGPUStats(
+            return HardwareStats(
                 gpu_id=gpu_id,
                 gpu_name=self._gpu_name_cached or "AMD GPU",
                 is_available=False,

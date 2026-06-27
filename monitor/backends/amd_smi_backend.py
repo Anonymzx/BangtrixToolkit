@@ -21,7 +21,7 @@ import platform
 import subprocess
 from ctypes import byref, c_int, c_void_p, c_char_p, POINTER, Structure, c_uint
 
-from .base import MonitorBackend, AMDGPUStats
+from .base import MonitorBackend, HardwareStats
 
 logger = logging.getLogger(__name__)
 
@@ -349,8 +349,8 @@ class AMDSensorBackend(MonitorBackend):
         self.vendor = "amd"
         return True
 
-    def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        stats = AMDGPUStats(
+    def get_stats(self, gpu_id: int = 0) -> HardwareStats:
+        stats = HardwareStats(
             gpu_id=gpu_id,
             gpu_name="AMD GPU",
             is_available=True,

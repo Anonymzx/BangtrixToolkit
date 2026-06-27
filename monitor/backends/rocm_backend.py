@@ -18,7 +18,7 @@ import platform
 import re
 import subprocess
 
-from .base import MonitorBackend, AMDGPUStats
+from .base import MonitorBackend, HardwareStats
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +223,7 @@ class ROCMBackend(MonitorBackend):
         self._hipinfo = None
         self._has_amd_smi = False
         self._gpu_info_cache = None
+        self._pdh = None  # Cached PDH backend — shared across get_stats() calls
 
     def initialize(self) -> bool:
         if platform.system() != "Windows":
@@ -248,14 +249,25 @@ class ROCMBackend(MonitorBackend):
         if not self._gpu_info_cache:
             return False
 
+        # Initialize the PDH fallback ONCE — it owns performance-counter
+        # query handles that would leak if we re-opened them per-poll.
+        try:
+            from .pdh_backend import PDHBackend
+            self._pdh = PDHBackend()
+            if not self._pdh.initialize():
+                self._pdh = None
+        except Exception as e:
+            logger.debug(f"ROCm backend: PDH fallback unavailable: {e}")
+            self._pdh = None
+
         self.available = True
         self.vendor = "amd"
         self.gpu_count = 1
         self.gpu_names = [self._gpu_info_cache.get("gpu_name", "AMD GPU")]
         return True
 
-    def get_stats(self, gpu_id: int = 0) -> AMDGPUStats:
-        stats = AMDGPUStats(
+    def get_stats(self, gpu_id: int = 0) -> HardwareStats:
+        stats = HardwareStats(
             gpu_id=gpu_id,
             gpu_name=self.gpu_names[gpu_id] if gpu_id < len(self.gpu_names) else "AMD GPU",
             is_available=True,
@@ -278,13 +290,11 @@ class ROCMBackend(MonitorBackend):
             stats.fan_speed = fan
             stats.utilization_gpu = util
 
-        # Fallback: get live VRAM usage + utilization from PDH counters
-        # (hipInfo only gives static total VRAM, PDH gives live usage)
-        try:
-            from .pdh_backend import PDHBackend
-            pdh = PDHBackend()
-            if pdh.initialize():
-                pdh_stats = pdh.get_stats(gpu_id)
+        # Fallback: pull live VRAM usage + utilization from the cached PDH
+        # backend. (hipInfo only gives static total VRAM; PDH gives live usage.)
+        if self._pdh is not None:
+            try:
+                pdh_stats = self._pdh.get_stats(gpu_id)
                 if pdh_stats.memory_used > 0:
                     stats.memory_used = pdh_stats.memory_used
                 if pdh_stats.memory_total > 0 and stats.memory_total == 0:
@@ -295,7 +305,16 @@ class ROCMBackend(MonitorBackend):
                     stats.temperature = pdh_stats.temperature
                 if pdh_stats.memory_clock > 0:
                     stats.memory_clock = pdh_stats.memory_clock
-        except Exception:
-            pass
+            except Exception as e:
+                logger.warning(f"ROCm backend: PDH stats read failed: {e}")
 
         return stats
+
+    def close(self):
+        """Release the cached PDH backend's query handles."""
+        if self._pdh is not None:
+            try:
+                self._pdh.close()
+            except Exception:
+                pass
+            self._pdh = None

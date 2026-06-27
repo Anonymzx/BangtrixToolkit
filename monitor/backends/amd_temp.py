@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def read_amd_temperature() -> tuple[float, int]:
     """Read AMD GPU temperature and fan speed.
-    
+
     Returns:
         (temperature_celsius, fan_speed_percent)
         0.0, 0 if unavailable.
@@ -82,21 +82,22 @@ def _read_ps_thermal() -> tuple[float, int]:
     temp = 0.0
     fan = 0
 
-    ps_cmd = (
-        'powershell -NoProfile -Command '
-        '"Get-WmiObject -Namespace root/WMI -Class MSAcpi_ThermalZoneTemperature '
-        '-ErrorAction SilentlyContinue | '
-        'Where-Object { $_.Active -eq $true } | '
-        'Select-Object @{N=\'T\';E={[math]::Round(($_.CurrentTemperature - 2732) / 10, 1)}} '
-        '-ExpandProperty T"'
-    )
+    # Command as a single argument list — avoids the shell-injection surface
+    # of shell=True and stays portable (we never hand the string to /bin/sh).
+    ps_argv = [
+        "powershell", "-NoProfile", "-Command",
+        "Get-WmiObject -Namespace root/WMI -Class MSAcpi_ThermalZoneTemperature "
+        "-ErrorAction SilentlyContinue | "
+        "Where-Object { $_.Active -eq $true } | "
+        "Select-Object @{N='T';E={[math]::Round(($_.CurrentTemperature - 2732) / 10, 1)}} "
+        "-ExpandProperty T",
+    ]
 
     try:
         result = subprocess.run(
-            ps_cmd,
+            ps_argv,
             capture_output=True, text=True, timeout=5,
             creationflags=subprocess.CREATE_NO_WINDOW,
-            shell=True,
         )
         if result.returncode == 0 and result.stdout.strip():
             lines = [l.strip() for l in result.stdout.split('\n') if l.strip()]
@@ -115,18 +116,17 @@ def _read_ps_thermal() -> tuple[float, int]:
         return temp, fan
 
     # Try getting discrete GPU temperature
-    ps_gpu = (
-        'powershell -NoProfile -Command '
-                    '"Get-Counter -Counter \\\"GPU(*)\\Temperature\\\" '
-        '-ErrorAction SilentlyContinue | Select-Object -ExpandProperty CounterSamples '
-        '| Select-Object -First 1 -ExpandProperty CookedValue"'
-    )
+    ps_gpu_argv = [
+        "powershell", "-NoProfile", "-Command",
+        'Get-Counter -Counter "GPU(*)\\Temperature" '
+        "-ErrorAction SilentlyContinue | Select-Object -ExpandProperty CounterSamples "
+        "| Select-Object -First 1 -ExpandProperty CookedValue",
+    ]
     try:
         result = subprocess.run(
-            ps_gpu,
+            ps_gpu_argv,
             capture_output=True, text=True, timeout=5,
             creationflags=subprocess.CREATE_NO_WINDOW,
-            shell=True,
         )
         if result.returncode == 0 and result.stdout.strip():
             val = float(result.stdout.strip())
@@ -136,23 +136,3 @@ def _read_ps_thermal() -> tuple[float, int]:
         logger.debug(f"AMD Temp: PS GPU counter error: {e}")
 
     return temp, fan
-
-
-def read_amd_temperature_safe() -> dict:
-    """Safe wrapper that never raises — returns dict with temp/fan."""
-    try:
-        temp, fan = read_amd_temperature()
-        return {
-            "temperature": round(float(temp), 1),
-            "fan_speed": int(fan),
-            "temp_available": temp > 0,
-            "fan_available": fan > 0,
-        }
-    except Exception as e:
-        logger.error(f"AMD Temp: error: {e}")
-        return {
-            "temperature": 0.0,
-            "fan_speed": 0,
-            "temp_available": False,
-            "fan_available": False,
-        }

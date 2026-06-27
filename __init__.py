@@ -61,10 +61,6 @@ __all__ = [
 #   GET /bangtrix/hw/stats  -> JSON GPU data (polling)
 #   WS  /ws/hw_monitor      -> WebSocket streaming (fallback)
 
-import sys as _sys
-import os as _os
-from importlib import util as _util
-
 # === BULLETPROOF GLOBAL CACHE FALLBACK ===
 # Declared BEFORE any route or server init. If ANYTHING goes wrong
 # in the hardware server, route handlers will fall back to this.
@@ -101,11 +97,12 @@ try:
     if _ps.instance:
         _app = _ps.instance.app
         from aiohttp import web
+        import importlib.util as _importlib_util
 
         # Load hw_server module via file path
         _hws_path = _os.path.join(_os.path.dirname(__file__), "monitor", "hw_server.py")
-        _spec = _util.spec_from_file_location("BangtrixToolkit_hw_server", _hws_path)
-        _hws_mod = _util.module_from_spec(_spec)
+        _spec = _importlib_util.spec_from_file_location("BangtrixToolkit_hw_server", _hws_path)
+        _hws_mod = _importlib_util.module_from_spec(_spec)
         _sys.modules["BangtrixToolkit_hw_server"] = _hws_mod
         _spec.loader.exec_module(_hws_mod)
         _get_hw = _hws_mod.get_hw_server

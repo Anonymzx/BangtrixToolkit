@@ -20,7 +20,7 @@ Universal Fallback:
   - fallback: psutil-based system RAM fallback (last resort)
 """
 
-from .base import MonitorBackend, HardwareStats, AMDGPUStats
+from .base import MonitorBackend, HardwareStats
 
 # Windows backends
 from .pdh_backend import PDHBackend
@@ -42,7 +42,6 @@ from .rocm_backend import ROCMBackend
 __all__ = [
     "MonitorBackend",
     "HardwareStats",
-    "AMDGPUStats",
     "PDHBackend",
     "AMDSensorBackend",
     "ROCMBackend",

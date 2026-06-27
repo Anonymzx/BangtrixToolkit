@@ -128,15 +128,24 @@ class LinuxNVIDIABackend(MonitorBackend):
                         stats.memory_clock = int(float(parts[6]))
                         stats.power_draw = float(parts[7])
                     except (ValueError, IndexError) as e:
-                        logger.debug(f"Linux NVIDIA parse error: {e}")
+                        logger.warning(
+                            f"Linux NVIDIA: failed to parse nvidia-smi output "
+                            f"for GPU {gpu_id}: {e}"
+                        )
             else:
-                # nvidia-smi failed — return basic info without real-time stats
+                # nvidia-smi failed — emit a one-shot warning so the user
+                # knows overlay readings are stale, then fall back to sysfs
+                # temp if available.
+                logger.warning(
+                    f"Linux NVIDIA: nvidia-smi returned non-zero for GPU {gpu_id} "
+                    f"(rc={result.returncode}); overlay will show stale stats"
+                )
                 stats.temperature = self._get_temp_fallback(gpu_id)
 
             return stats
 
         except subprocess.TimeoutExpired:
-            logger.debug(f"Linux NVIDIA get_stats({gpu_id}) timed out")
+            logger.warning(f"Linux NVIDIA: nvidia-smi timed out for GPU {gpu_id}")
             return HardwareStats(
                 gpu_id=gpu_id,
                 gpu_name=self.gpu_names[gpu_id] if gpu_id < len(self.gpu_names) else f"NVIDIA GPU {gpu_id}",

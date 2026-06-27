@@ -63,10 +63,6 @@ class HardwareStats:
         return 0.0
 
 
-# Backward compatibility alias
-AMDGPUStats = HardwareStats
-
-
 class MonitorBackend:
     """Base class for all monitoring backends"""
 
