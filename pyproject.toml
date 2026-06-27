@@ -1,0 +1,22 @@
+[project]
+name = "bangtrix-toolkit"
+description = "Universal translation nodes (Google Translate) + real-time hardware monitor overlay (GPU/CPU stats) for ComfyUI."
+version = "1.2.0"
+license = { file = "LICENSE" }
+dependencies = [
+    "aiohttp>=3.8.0",
+    "requests>=2.31.0",
+    "async-timeout>=4.0.0",
+    "psutil>=5.9.0",
+    "pywin32>=306; sys_platform == 'win32'",
+    "pynvml>=11.5.0",
+]
+
+[project.urls]
+Repository = "https://github.com/Anonymzx/BangtrixToolkit"
+Issues = "https://github.com/Anonymzx/BangtrixToolkit/issues"
+
+[tool.comfy]
+PublisherId = "anonymzx"
+DisplayName = "Bangtrix Toolkit"
+Icon = ""

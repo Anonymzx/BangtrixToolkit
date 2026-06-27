@@ -12,7 +12,7 @@ import logging
 import sys as _sys
 import os as _os
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Anonymzx"
 
 # Ensure this package is on sys.path for absolute imports to work
