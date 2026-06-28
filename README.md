@@ -255,7 +255,7 @@ pip install -r BangtrixToolkit/requirements.txt
 
 ---
 
-
+<details>
 <summary><b>⚠️ Compatibility, Testing & Bug Reports</b> (Click to Expand)</summary>
 
 <br>
