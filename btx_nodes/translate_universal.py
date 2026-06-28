@@ -1,4 +1,3 @@
-import json
 import hashlib
 import requests
 from collections import OrderedDict

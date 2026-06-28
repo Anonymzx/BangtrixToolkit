@@ -116,6 +116,13 @@ class PDHBackend(MonitorBackend):
         self._cached_fan: int = 0
         self._last_temp_check: float = 0.0
 
+        # psutil virtual_memory() cache for the APU VRAM proxy. Reusing the
+        # temp/fan window keeps psutil off the per-poll hot path (~2 calls/s
+        # per APU box) while staying fresh enough for memory pressure to
+        # visibly shift the overlay.
+        self._cached_psutil_mb: int = 0
+        self._cached_psutil_pct: float = 0.0
+
     def initialize(self) -> bool:
         if platform.system() != "Windows":
             return False
@@ -590,10 +597,19 @@ if ($gpu) {
         """APU-specific: estimate VRAM used via system memory pressure.
         Since APU uses shared system RAM, we use psutil memory percentage
         to estimate how much of the shared VRAM pool is in use.
-        Falls back to system memory usage as proxy."""
+        Falls back to system memory usage as proxy.
+
+        psutil.virtual_memory() is cached for ``_TEMP_CACHE_SECONDS`` so the
+        0.5s poll loop doesn't make a syscall on every tick.
+        """
         try:
             import psutil
-            svmem = psutil.virtual_memory()
+            # Refresh the psutil sample only when the cache window expires.
+            now = time.time()
+            if now - self._last_temp_check >= self._TEMP_CACHE_SECONDS:
+                svmem = psutil.virtual_memory()
+                self._cached_psutil_mb = int(svmem.used / (1024 * 1024))
+                self._cached_psutil_pct = float(svmem.percent)
             # Use system memory percentage as proxy for VRAM usage
             # APU can dynamically allocate up to ~50% of system RAM for GPU
             # We estimate: used_vram = min(dedicated_uma, ~100%) + shared_pool * mem_usage_pct
@@ -602,11 +618,11 @@ if ($gpu) {
             # Assume UMA is fully committed (APU always uses it)
             # Shared portion usage = pool_size * system_memory_percentage
             dedicated_used = dedicated_uma  # UMA is always "in use" by the GPU
-            shared_used = int(shared_pool * (svmem.percent / 100.0))
+            shared_used = int(shared_pool * (self._cached_psutil_pct / 100.0))
             total_used = dedicated_used + shared_used
             logger.debug(
                 f"PDH: APU psutil VRAM proxy: dedicated={dedicated_used}, "
-                f"shared={shared_used} (pool={shared_pool}@{svmem.percent:.0f}%) = {total_used}"
+                f"shared={shared_used} (pool={shared_pool}@{self._cached_psutil_pct:.0f}%) = {total_used}"
             )
             return total_used
         except ImportError:
@@ -666,6 +682,11 @@ if ($gpu) {
                         util_read = self._scale_util(val)
                 # Fallback to PS if PDH returns 0
                 if util_read == 0.0:
+                    logger.debug(
+                        "PDH: util counter returned 0 on dGPU (%s); "
+                        "falling back to PS wildcard summation",
+                        self._gpu_name or "AMD GPU",
+                    )
                     util_read = self._apu_wildcard_utilization()
             stats.utilization_gpu = util_read
 

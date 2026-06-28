@@ -89,7 +89,9 @@ class LinuxAMDGPUBackend(MonitorBackend):
         self._temp_cache_timestamp: float = 0
         self._cached_temp: float = 0.0
         self._cached_fan: Optional[int] = None   # None => not yet sampled
-        self._TEMP_CACHE_SECONDS = 5.0
+        self._fan_cache_timestamp: float = 0
+        self._TEMP_CACHE_SECONDS = 2.0
+        self._FAN_CACHE_SECONDS = 1.0
 
     def initialize(self) -> bool:
         import platform
@@ -382,31 +384,56 @@ class LinuxAMDGPUBackend(MonitorBackend):
             )
 
     def _get_temperature(self) -> float:
-        """Read GPU temperature from hwmon with caching."""
+        """Read GPU temperature from hwmon with caching.
+
+        Sensor priority (highest wins):
+
+          1. ``temp*_label == 'junction'`` — GPU die temp, the value AMD
+             Radeon Software and HWiNFO report as "GPU Temperature".
+             Best signal for thermal throttling on RDNA3.
+          2. ``temp*_label == 'edge'`` — case edge temp, the conservative
+             number most users see when they touch the backplate.
+          3. Fallback: max of all ``temp*_input`` files within 20–120°C.
+        """
         now = time.time()
         if now - self._temp_cache_timestamp < self._TEMP_CACHE_SECONDS:
             return self._cached_temp
 
-        temp = 0.0
+        junction = None
+        edge = None
+        fallback_max = 0.0
         for hwmon_path in self._hwmon_paths:
             try:
                 for entry in sorted(os.listdir(hwmon_path)):
-                    if entry.startswith("temp") and entry.endswith("_input"):
-                        temp_file = os.path.join(hwmon_path, entry)
+                    if not (entry.startswith("temp") and entry.endswith("_input")):
+                        continue
+                    temp_file = os.path.join(hwmon_path, entry)
+                    label_file = temp_file.replace("_input", "_label")
+                    try:
+                        with open(temp_file, 'r') as f:
+                            raw = int(f.read().strip())
+                    except (ValueError, OSError):
+                        continue
+                    celsius = raw / 1000.0
+                    if not (20 <= celsius <= 120):
+                        continue
+                    if celsius > fallback_max:
+                        fallback_max = celsius
+                    label = ""
+                    if os.path.exists(label_file):
                         try:
-                            with open(temp_file, 'r') as f:
-                                raw = int(f.read().strip())
-                            celsius = raw / 1000.0
-                            if 20 <= celsius <= 120:
-                                if celsius > temp:
-                                    temp = celsius
-                        except (ValueError, OSError) as e:
-                            logger.debug(
-                                f"Linux AMD: temp read failed for {temp_file}: {e}"
-                            )
+                            with open(label_file, 'r') as f:
+                                label = f.read().strip().lower()
+                        except OSError:
+                            pass
+                    if label == "junction" and (junction is None or celsius > junction):
+                        junction = celsius
+                    elif label == "edge" and (edge is None or celsius > edge):
+                        edge = celsius
             except OSError as e:
                 logger.debug(f"Linux AMD: hwmon listdir failed for {hwmon_path}: {e}")
 
+        temp = junction if junction is not None else (edge if edge is not None else fallback_max)
         self._cached_temp = temp
         self._temp_cache_timestamp = now
         return temp
@@ -414,42 +441,51 @@ class LinuxAMDGPUBackend(MonitorBackend):
     def _get_fan_speed(self) -> int:
         """Read fan duty cycle (%) from amdgpu hwmon.
 
-        Strategy (in priority order):
-          1. ``pwm1`` / ``pwm1_max`` — raw PWM duty, converted to %.
-             This is the **most reliable** source on RDNA3 cards (e.g. Navi 32
-             RX 7700/7800 XT) because the driver may stop the fan entirely at
-             low temperature (zero-RPM idle) while ``pwm1`` still reflects the
-             target duty the firmware would command.
-          2. ``fan1_input`` is reported as a percentage-per-mille (e.g. ``778``
-             = 77.8% duty) on modern drivers, but RPM on older ones. We treat
-             values > 10000 as RPM (divide by 100); smaller values as
-             permille (divide by 10). If the read returns 0 we fall back to
-             ``pwm1`` — that zero can simply mean "fan stopped at idle",
-             not "fan does not exist".
+        Strategy chain — first hit wins, each card path is tried in order:
 
-        The reported value matches what tools like ``radeontop`` /
-        ``amdgpu-fan`` show. Cards without fan control (``pwm1_enable == 0``
-        AND no ``fan1_input``) return 0 — passive / fanless designs shouldn't
-        pretend to have a fan.
+          1. ``pwm1`` / ``pwm1_max`` — raw PWM duty (legacy pre-6.x driver,
+             also some aftermarket drivers).
+          2. ``fan1_target`` / ``fan1_max`` — **firmware-intended RPM** /
+             max RPM. This is the most useful value on RDNA3 (Navi 32,
+             RX 7700/7800 XT) when the kernel driver has *stopped* the fan
+             at idle: ``fan1_input`` reports 0 RPM (the fan really is
+             stopped) but ``fan1_target`` shows what the firmware would
+             command the moment temperature rises. Reporting the target
+             avoids the "stuck at 0%" false reading.
+          3. ``fan1_input`` / ``fan1_max`` — current RPM scaled to %.
+             Pre-RDNA3 fallback; on modern driver the input is 0 in
+             zero-RPM idle and this returns 0.
+          4. ``fan1_input`` permille (raw // 10) — older drivers that
+             report duty as 0–1000 instead of RPM.
 
         Result is clamped to [0, 100] and cached for 5s like temperature
         to keep sysfs reads light.
+
+        Card without fan control (``pwm1_enable == "0"`` AND no
+        ``fan1_*`` files) returns 0 — passive / fanless designs shouldn't
+        pretend to have a fan.
         """
         now = time.time()
-        # Reuse the temp cache window — fan and temp are usually
-        # sampled together and 5s is more than fresh enough. We only
-        # return a cached value once we've actually populated one,
-        # otherwise we'd permanently return 0 on a fresh backend.
+        # Independent cache window — fan can change much faster than
+        # temp during a workload ramp, so sharing temp's 5s window made
+        # the overlay look "stuck" at the boot-time reading.
         cached = getattr(self, "_cached_fan", None)
         if (
             cached is not None
-            and now - self._temp_cache_timestamp < self._TEMP_CACHE_SECONDS
+            and now - self._fan_cache_timestamp < self._FAN_CACHE_SECONDS
         ):
             return cached
 
         fan_pct = 0
         for hwmon_path in self._hwmon_paths:
+            # If the driver exposes pwm1_enable == 0 (manual off) AND no
+            # fan1_* files, the card is fanless — skip the whole path.
             enable_file = os.path.join(hwmon_path, "pwm1_enable")
+            has_pwm1 = os.path.exists(os.path.join(hwmon_path, "pwm1"))
+            has_fan1 = os.path.exists(os.path.join(hwmon_path, "fan1_input"))
+            if not (has_pwm1 or has_fan1):
+                continue
+
             pwm_disabled = False
             if os.path.exists(enable_file):
                 try:
@@ -459,37 +495,82 @@ class LinuxAMDGPUBackend(MonitorBackend):
                 except OSError:
                     pass
 
-            # === Strategy 1: pwm1 / pwm1_max (raw duty cycle) ===
-            # Preferred on RDNA3 because fan1_input can be 0 in zero-RPM idle.
-            if not pwm_disabled:
+            # === Strategy 1: pwm1 / pwm1_max (raw duty, legacy) ===
+            logger.debug(f"FAN: hwmon={hwmon_path} has_pwm1={has_pwm1} pwm_disabled={pwm_disabled} pwm1_enable_file={os.path.exists(enable_file)}")
+            if not pwm_disabled and has_pwm1:
                 pwm_file = os.path.join(hwmon_path, "pwm1")
                 pwm_max_file = os.path.join(hwmon_path, "pwm1_max")
-                if os.path.exists(pwm_file) and os.path.exists(pwm_max_file):
+                logger.debug(f"FAN: Strategy1 checking {pwm_file} exists={os.path.exists(pwm_file)} max_exists={os.path.exists(pwm_max_file)}")
+                if os.path.exists(pwm_max_file):
                     try:
                         with open(pwm_file, 'r') as f:
                             pwm = int(f.read().strip())
                         with open(pwm_max_file, 'r') as f:
                             pwm_max = int(f.read().strip())
+                        logger.debug(f"FAN: Strategy1 pwm={pwm} pwm_max={pwm_max}")
                         if pwm_max > 0:
                             pct = int(round(pwm * 100.0 / pwm_max))
+                            logger.debug(f"FAN: Strategy1 pct={pct}")
                             fan_pct = max(fan_pct, pct)
-                    except (ValueError, OSError):
-                        pass
+                            if pct > 0:
+                                # Got a real reading — stop walking backends.
+                                break
+                    except (ValueError, OSError) as e:
+                        logger.debug(f"FAN: Strategy1 exception: {e}")
 
-            # === Strategy 2: fan1_input (RPM or permille depending on driver) ===
-            fan_input = os.path.join(hwmon_path, "fan1_input")
-            if os.path.exists(fan_input):
+            # === Strategy 2: fan1_target / fan1_max (firmware intent) ===
+            # On modern RDNA3 drivers, this is the *only* way to see fan
+            # activity before the fan actually spins up — fan1_input stays
+            # at 0 RPM in zero-RPM idle, so a naive implementation reports
+            # "0%" the whole time. fan1_target reflects what the firmware
+            # would command once temperature crosses the ramp threshold.
+            target_file = os.path.join(hwmon_path, "fan1_target")
+            max_file = os.path.join(hwmon_path, "fan1_max")
+            if os.path.exists(target_file) and os.path.exists(max_file):
                 try:
-                    with open(fan_input, 'r') as f:
+                    with open(target_file, 'r') as f:
+                        target = int(f.read().strip())
+                    with open(max_file, 'r') as f:
+                        fan_max = int(f.read().strip())
+                    if fan_max > 0 and target > 0:
+                        pct = int(round(target * 100.0 / fan_max))
+                        fan_pct = max(fan_pct, pct)
+                        # Keep walking — Strategy 3 may still report a
+                        # higher RPM-derived value while fan is spinning.
+                except (ValueError, OSError):
+                    pass
+
+            # === Strategy 3: fan1_input / fan1_max (current RPM scaled) ===
+            # Modern RDNA3 only — older drivers used a different file.
+            if has_fan1 and os.path.exists(max_file):
+                try:
+                    with open(os.path.join(hwmon_path, "fan1_input"), 'r') as f:
+                        rpm = int(f.read().strip())
+                    if rpm > 0:
+                        with open(max_file, 'r') as f:
+                            fan_max = int(f.read().strip())
+                        if fan_max > 0:
+                            fan_pct = max(fan_pct, int(round(rpm * 100.0 / fan_max)))
+                except (ValueError, OSError):
+                    pass
+
+            # === Strategy 4: fan1_input permille (legacy 0–1000 driver) ===
+            # Older out-of-tree drivers reported fan duty as 0–1000
+            # permille instead of RPM. Modern drivers report RPM (often
+            # > 1000 even at low speeds) and were already handled by
+            # Strategy 3; here we only act on values that *can't* be
+            # RPM. Upper bound 1000 means "if RPM is reported, it would
+            # be at least 1001" — false on most cards but cheap to guard.
+            if has_fan1:
+                try:
+                    with open(os.path.join(hwmon_path, "fan1_input"), 'r') as f:
                         raw = int(f.read().strip())
-                    if raw > 10000:
-                        # Definitely RPM (most modern discrete cards)
-                        fan_pct = max(fan_pct, raw // 100)
-                    elif raw > 0:
-                        # Could be permille (778 = 77.8%) or low RPM (< 10000).
-                        # For RDNA3 the driver reports permille here.
+                    # permille on legacy drivers: 778 = 77.8% duty.
+                    if 11 < raw <= 1000 and raw != int(open(os.path.join(hwmon_path, "fan1_max")).read().strip()):
+                        # Last guard: skip if this value happens to equal
+                        # fan1_max (some quirky firmware reports max as
+                        # input when at full tilt).
                         fan_pct = max(fan_pct, raw // 10)
-                    # raw == 0 means fan stopped (zero-RPM idle); keep current fan_pct
                 except (ValueError, OSError):
                     pass
 
@@ -498,6 +579,7 @@ class LinuxAMDGPUBackend(MonitorBackend):
 
         fan_pct = max(0, min(100, fan_pct))
         self._cached_fan = fan_pct
+        self._fan_cache_timestamp = time.time()
         return fan_pct
 
     def _read_power(self, card_path: str) -> Optional[float]:

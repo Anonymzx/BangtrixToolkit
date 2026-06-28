@@ -101,7 +101,16 @@ _free_memory_last_call = {"t": 0.0}
 
 
 def _free_memory_is_rate_limited() -> bool:
-    """True if a /btx/free_memory call happened recently."""
+    """True if a /btx/free_memory call happened recently.
+
+    **Must be called from inside an asyncio event loop.** The current time
+    comes from ``asyncio.get_running_loop().time()`` (monotonic); if there
+    is no running loop the fallback ``0.0`` means ``now - last_call`` is
+    always huge and the limiter will never trip. Today the only caller is
+    the aiohttp handler in ``free_memory_handler`` so this is fine, but a
+    regression that invokes the limiter from a worker thread, sync code, or
+    outside the loop will silently bypass rate limiting.
+    """
     loop = _safe_event_loop()
     now = loop.time() if loop is not None else 0.0
     if now - _free_memory_last_call["t"] < _FREE_MEMORY_MIN_INTERVAL_S:

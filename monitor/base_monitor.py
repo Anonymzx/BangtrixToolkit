@@ -195,7 +195,10 @@ class UniversalMonitor:
     def get_gpu_stats(self, gpu_id: int = 0) -> HardwareStats:
         """Get stats for a specific GPU. Returns safe fallback on error."""
         # If backend is not ready yet, return a placeholder with "loading" status
-        if not self._ready:
+        # NOTE: ``self.ready`` is the property (driven by ``_ready_event``); the
+        # earlier ``self._ready`` here raised AttributeError on the very first
+        # poll before the background init thread set the event.
+        if not self.ready:
             return HardwareStats(
                 gpu_id=gpu_id,
                 gpu_name="Detecting Hardware...",
@@ -232,7 +235,9 @@ class UniversalMonitor:
 
     def get_all_gpu_stats(self) -> List[HardwareStats]:
         """Get stats for all detected GPUs."""
-        if not self._ready or not self._backend or self.gpu_count == 0:
+        # Same fix as get_gpu_stats: ``self._ready`` was undefined; use the
+        # ``ready`` property which reflects ``_ready_event.is_set()``.
+        if not self.ready or not self._backend or self.gpu_count == 0:
             return []
         return [self.get_gpu_stats(i) for i in range(self.gpu_count)]
 
