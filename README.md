@@ -255,59 +255,7 @@ pip install -r BangtrixToolkit/requirements.txt
 
 ---
 
-<details>
-<summary><b>🌐 HTTP API (Power Users)</b> (Click to Expand)</summary>
-<br>
 
-The HW Monitor exposes a small JSON API alongside ComfyUI's existing endpoints, all under `/btx/*`. Useful for dashboards, scripts, or external monitoring.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET`  | `/btx/hw/stats` | JSON GPU stats (current cache snapshot, ~500 ms polling). Primary endpoint used by the overlay. |
-| `WS`   | `/btx/ws/hw_monitor` | WebSocket stream (1 msg/sec). Fallback for clients that prefer push. |
-| `GET`  | `/btx/hw/health` | Liveness check — returns `{"status": "ok"}`. |
-| `POST` | `/btx/free_memory` | Aggressive VRAM + RAM flush: unloads all idle models, clears PyTorch cache, runs `gc.collect()`. |
-
-**Quick example:**
-
-```bash
-curl http://localhost:8188/btx/hw/stats | jq .
-curl http://localhost:8188/btx/hw/health
-curl -X POST http://localhost:8188/btx/free_memory
-```
-
-**Response shape** (`/btx/hw/stats`):
-
-```json
-{
-  "type": "hw_stats",
-  "gpu_name": "AMD Radeon RX 7800 XT",
-  "vendor": "amd",
-  "os_type": "windows",
-  "is_available": true,
-  "gpu_utilization": 42.5,
-  "vram_used_mb": 4096,
-  "vram_total_mb": 16384,
-  "vram_usage_pct": 25.0,
-  "temperature": 64.0,
-  "fan_speed": 1100,
-  "core_clock_mhz": 2100,
-  "power_draw_watts": 187.3,
-  "history": [12.0, 18.5, 42.5],
-  "backend": "rocm"
-}
-```
-
-> 🔒 **Safety notes**:
-> - `POST /btx/free_memory` is **rate-limited to one call per 10 seconds** to prevent the event loop being pinned by repeated `gc.collect()` runs.
-> - Same-origin / CSRF check: requests must have no `Origin` header (curl, server-to-server) OR a matching `Origin`/`Host`. Cross-origin POSTs are rejected with `403`.
-> - All endpoint handlers off-load sync work to a worker thread via `asyncio.to_thread` — they never block ComfyUI's prompt queue.
-
-</details>
-
----
-
-<details>
 <summary><b>⚠️ Compatibility, Testing & Bug Reports</b> (Click to Expand)</summary>
 
 <br>
@@ -356,16 +304,6 @@ If you are using an RX 7000 series GPU, you will reliably get **GPU Name**, **GP
 </details>
 
 <div align="left">
-
-## 🛠️ For Developers
-
-A small helper script keeps `__version__` in `__init__.py` and `pyproject.toml` synchronized:
-
-```bash
-python scripts/bump_version.py 1.4.0
-```
-
-Use this when cutting a release to avoid drift between the two files.
 
 ### 💖 [Support This Project](https://ko-fi.com/anonymzx)
 
