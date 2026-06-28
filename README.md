@@ -303,6 +303,8 @@ If you are using an RX 7000 series GPU, you will reliably get **GPU Name**, **GP
 
 </details>
 
+---
+
 <div align="left">
 
 ### 💖 [Support This Project](https://ko-fi.com/anonymzx)
