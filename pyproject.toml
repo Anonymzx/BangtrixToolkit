@@ -1,6 +1,6 @@
 [project]
 name = "bangtrix-toolkit"
-description = "Universal translation nodes (Google Translate) + real-time hardware monitor overlay (GPU/CPU stats) for ComfyUI."
+description = "Real-time ComfyUI Hardware Monitor with native AMD ROCm and All GPU/APU NVIDIA support and Universal Prompt Translator node for multilingual AI workflows."
 version = "1.3.6"
 license = { file = "LICENSE" }
 dependencies = [
