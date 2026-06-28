@@ -16,7 +16,7 @@ A powerful toolkit for ComfyUI featuring a **real-time Hardware Monitor overlay*
 ---
 
 <details>
-<summary><b>✨ Key Features</b> (Click to Collapse)</summary>
+<summary><b>✨ Key Features</b> (Click to Expand)</summary>
 <br>
 
 # 🖥️ Advanced HW Monitor
