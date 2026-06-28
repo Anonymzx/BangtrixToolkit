@@ -19,7 +19,7 @@ import logging
 import os as _os
 import sys as _sys
 
-__version__ = "1.2.1"
+__version__ = "1.3.6"
 __author__ = "Anonymzx"
 
 # Ensure this package is on sys.path for absolute imports to work
