@@ -8,7 +8,7 @@ Usage:
     from monitor import get_universal_monitor
     monitor = get_universal_monitor()
     stats = monitor.get_gpu_stats(0)
-    print(stats.gpu_name, stats.vendor, stats.temperature)
+    print(stats.gpu_name, stats.vendor, stats.temperature)  # noqa: T201 — example only
 """
 
 from .base_monitor import get_universal_monitor, UniversalMonitor

@@ -2,7 +2,7 @@
  * BangtrixToolkit — Universal Hardware Monitor Overlay
  * ComfyUI Extension
  * 
- * Strategy: REST API polling via GET /bangtrix/hw/stats.
+ * Strategy: REST API polling via GET /btx/hw/stats.
  * Fallback: WebSocket /ws/hw_monitor.
  * Toggle: Ctrl+Shift+M
  */
@@ -238,6 +238,20 @@
         if (!el) console.error("🖥️ DOM Element:", id);
         return el;
     }
+    // === COLOR VALIDATION ===
+    // ``curCustomAccent`` and ``curCustomText`` are concatenated into CSS
+    // template strings (``dynamicCss.textContent``). A malformed value such
+    // as ``"} body{background:red}/*`` would let a hostile localStorage
+    // payload escape the property and inject arbitrary CSS. Reject anything
+    // that isn't a strict 6-digit hex color so the value reaching the CSS
+    // is provably safe to embed.
+    const _HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+    function _isValidColor(v) {
+        return typeof v === 'string' && _HEX_COLOR_RE.test(v);
+    }
+    function _safeColor(v, fallback) {
+        return _isValidColor(v) ? v : fallback;
+    }
     function _saveSetting(key, value) {
         try {
             const raw = localStorage.getItem('Comfy.Settings');
@@ -258,8 +272,8 @@
             if (s['Bangtrix.HWMonitor.BgOpacity'] != null) curBgOpacity = Number(s['Bangtrix.HWMonitor.BgOpacity']) || 0.92;
             if (s['Bangtrix.HWMonitor.CompactMode'] != null) curCompactMode = !!s['Bangtrix.HWMonitor.CompactMode'];
             if (s['Bangtrix.HWMonitor.GhostMode'] != null) curGhostMode = !!s['Bangtrix.HWMonitor.GhostMode'];
-            if (s['Bangtrix.HWMonitor.CustomAccent']) curCustomAccent = s['Bangtrix.HWMonitor.CustomAccent'];
-            if (s['Bangtrix.HWMonitor.CustomText']) curCustomText = s['Bangtrix.HWMonitor.CustomText'];
+            if (s['Bangtrix.HWMonitor.CustomAccent']) curCustomAccent = _safeColor(s['Bangtrix.HWMonitor.CustomAccent'], curCustomAccent);
+            if (s['Bangtrix.HWMonitor.CustomText']) curCustomText = _safeColor(s['Bangtrix.HWMonitor.CustomText'], curCustomText);
             if (s['Bangtrix.HWMonitor.UiScale'] != null) curUiScale = Number(s['Bangtrix.HWMonitor.UiScale']) || 1.0;
         } catch(e) {}
     }
@@ -542,7 +556,19 @@
                 e.preventDefault();
                 isVisible = !isVisible;
                 widget.classList.toggle('hidden', !isVisible);
-                if (isVisible) startPolling();
+                if (isVisible) {
+                    startPolling();
+                } else {
+                    // Stop background work when the widget is hidden so we
+                    // don't burn CPU/network on a widget the user can't see.
+                    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+                    // Close any active WebSocket and cancel its retry loop.
+                    if (ws) {
+                        try { ws.close(); } catch (_) {}
+                        ws = null;
+                    }
+                    wsRetries = MAX_WS_RETRIES;  // stop retry timer
+                }
             }
         });
     }
@@ -640,7 +666,9 @@
             _updateDynamicCss();
         };
         document.getElementById('hws-custom-accent').oninput = function() {
-            curCustomAccent = this.value;
+            var v = _safeColor(this.value, curCustomAccent);
+            if (v !== curCustomAccent) this.value = v;  // reject malformed
+            curCustomAccent = v;
             _saveSetting('Bangtrix.HWMonitor.CustomAccent', curCustomAccent);
             _applyTheme();
         };
@@ -651,7 +679,9 @@
             _applyUiScale();
         };
         document.getElementById('hws-custom-text').oninput = function() {
-            curCustomText = this.value;
+            var v = _safeColor(this.value, curCustomText);
+            if (v !== curCustomText) this.value = v;  // reject malformed
+            curCustomText = v;
             _saveSetting('Bangtrix.HWMonitor.CustomText', curCustomText);
             _applyTheme();
         };
@@ -688,7 +718,7 @@
         pollInterval = setInterval(fetchStats, curRefreshMs);
     }
     function fetchStats() {
-        fetch('/bangtrix/hw/stats')
+        fetch('/btx/hw/stats')
             .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(function(data) {
                 try {
@@ -725,13 +755,22 @@
     // ================================================================
     let ws = null, wsRetries = 0, MAX_WS_RETRIES = 10;
     function startWebSocket() {
+        // Don't burn CPU/network reconnecting if the widget is hidden.
+        if (!isVisible) return;
         if (ws && ws.readyState === WebSocket.OPEN) return;
-        const url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/hw_monitor';
+        const url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/btx/ws/hw_monitor';
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         ws = new WebSocket(url);
         ws.onopen = function() { setStatus("\u25CF LIVE", "live"); setMethod("WS 1s"); wsRetries = 0; };
         ws.onmessage = function(ev) { try { var d = JSON.parse(ev.data); if (d.type === 'hw_stats') updateDisplay(d); } catch(e) {} };
-        ws.onclose = function() { setStatus("WS Disc.", "err"); if (wsRetries < MAX_WS_RETRIES) { wsRetries++; setTimeout(startWebSocket, 2000); } };
+        ws.onclose = function() {
+            setStatus("WS Disc.", "err");
+            // Stop retrying if widget was hidden during the lifetime of
+            // this WS connection.
+            if (!isVisible || wsRetries >= MAX_WS_RETRIES) return;
+            wsRetries++;
+            setTimeout(startWebSocket, 2000);
+        };
     }
 
     // ================================================================
@@ -796,12 +835,34 @@
             if (vramBar) vramBar.style.background = '';
             if (vramVal) vramVal.style.color = '';
         }
-        var temp = Number(d.temperature) || 0;
-        if (temp > 0) { setUtil('hw-temp', temp.toFixed(1) + '\u00B0C', temp); setBar('hw-temp-bar', Math.min(temp, 100)); }
-        else { setUtil('hw-temp', 'N/A', 0); setBar('hw-temp-bar', 0); }
-        var fan = Number(d.fan_speed) || 0;
-        if (fan > 0) { setUtil('hw-fan', fan + '%', fan); setBar('hw-fan-bar', fan); }
-        else { setUtil('hw-fan', 'N/A', 0); setBar('hw-fan-bar', 0); }
+        // === Temperature ===
+        // null-aware: 0°C is a legitimate reading (cold boot, sub-zero bench),
+        // so distinguish "no sensor data" (null/undefined/-1) from "real zero".
+        var tempNum = (d.temperature === null || d.temperature === undefined || d.temperature === -1)
+            ? NaN : Number(d.temperature);
+        if (!Number.isFinite(tempNum)) {
+            setUtil('hw-temp', 'N/A', 0);
+            setBar('hw-temp-bar', 0);
+        } else {
+            setUtil('hw-temp', tempNum.toFixed(1) + '\u00B0C', tempNum);
+            setBar('hw-temp-bar', Math.min(tempNum, 100));
+        }
+        // === Fan ===
+        // Same null-aware treatment. Always render the duty cycle, even when
+        // 0 — on RDNA3 (e.g. RX 7700/7800 XT) the driver can stop the fan
+        // entirely at idle (zero-RPM mode) while the target PWM is still
+        // meaningful. Showing "0%" is more honest than "N/A".
+        var fanNum = (d.fan_speed === null || d.fan_speed === undefined || d.fan_speed === -1)
+            ? NaN : Number(d.fan_speed);
+        if (!Number.isFinite(fanNum)) {
+            setUtil('hw-fan', 'N/A', 0);
+            setBar('hw-fan-bar', 0);
+        } else {
+            fanNum = Math.max(0, Math.min(100, fanNum));
+            setUtil('hw-fan', fanNum + '%', fanNum);
+            setBar('hw-fan-bar', fanNum);
+        }
+
         var info = d.driver || 'unknown';
         if (d.core_clock_mhz > 0) info += ' | ' + d.core_clock_mhz + 'MHz';
         setMethod(info);
@@ -910,14 +971,14 @@
                 name: "\uD83C\uDFA8 Custom Accent Color (Custom theme only)",
                 type: "text",
                 defaultValue: "#00ff00",
-                onChange: function(v) { curCustomAccent = v || "#00ff00"; _saveSetting("Bangtrix.HWMonitor.CustomAccent", curCustomAccent); _syncSettingsPanel(); if (curTheme === 'Custom') _applyTheme(); }
+                onChange: function(v) { curCustomAccent = _safeColor(v, "#00ff00"); _saveSetting("Bangtrix.HWMonitor.CustomAccent", curCustomAccent); _syncSettingsPanel(); if (curTheme === 'Custom') _applyTheme(); }
             });
             app.ui.settings.addSetting({
                 id: "Bangtrix.HWMonitor.CustomText",
                 name: "\uD83D\uDD8C\uFE0F Custom Text Color (Custom theme only)",
                 type: "text",
                 defaultValue: "#ffffff",
-                onChange: function(v) { curCustomText = v || "#ffffff"; _saveSetting("Bangtrix.HWMonitor.CustomText", curCustomText); _syncSettingsPanel(); if (curTheme === 'Custom') _applyTheme(); }
+                onChange: function(v) { curCustomText = _safeColor(v, "#ffffff"); _saveSetting("Bangtrix.HWMonitor.CustomText", curCustomText); _syncSettingsPanel(); if (curTheme === 'Custom') _applyTheme(); }
             });
             console.log("\uD83D\uDDA5\uFE0F Bangtrix HW Monitor: 9 ComfyUI settings registered \u2705");
         } catch(e) {

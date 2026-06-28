@@ -9,7 +9,7 @@ Usage:
     monitor = get_process_monitor()
     monitor.start_monitoring()
     # ... generate images ...
-    print(monitor.get_summary())
+    logger.info("%s", monitor.get_summary())
 """
 
 import logging

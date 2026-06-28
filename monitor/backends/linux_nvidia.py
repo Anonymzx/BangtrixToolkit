@@ -6,17 +6,33 @@ Gracefully handles missing nvidia-smi or NVIDIA drivers.
 
 Falls back to 0/N/A values if nvidia-smi fails or times out.
 All subprocess calls have timeouts to prevent blocking.
+
+Performance notes:
+  - ``nvidia-smi`` is a separate process. Calling it once per poll
+    (0.5s) means 2 subprocess invocations / second / GPU — measurable
+    on busy systems. We cache the parsed output for ``_SMI_CACHE_TTL``
+    seconds; multiple get_stats() calls within that window reuse the
+    cached dict instead of spawning a new process.
+  - ``pynvml`` (when installed) is initialized once in ``initialize()``
+    and shut down in ``close()``. Per-call ``nvmlInit``/``nvmlShutdown``
+    would race between REST + WS handlers.
 """
 
 import logging
 import subprocess
-import json
-import re
+import threading
+import time
 from typing import Optional
 
 from .base import MonitorBackend, HardwareStats
 
 logger = logging.getLogger(__name__)
+
+# TTL (seconds) for the per-GPU nvidia-smi result cache. The background
+# update loop in hw_server.py polls every 0.5s; this cache makes
+# back-to-back get_stats() calls from REST + WS reuse one subprocess
+# invocation instead of spawning two.
+_SMI_CACHE_TTL = 0.5
 
 
 class LinuxNVIDIABackend(MonitorBackend):
@@ -29,6 +45,20 @@ class LinuxNVIDIABackend(MonitorBackend):
         self._gpu_count = 0
         self._gpu_info: list[dict] = []
         self._initialized = False
+
+        # Per-GPU nvidia-smi result cache, keyed by gpu_id. ``_smi_cache_ts``
+        # is the timestamp of the last successful fetch; readers reuse
+        # the cache if ``now - ts < _SMI_CACHE_TTL``.
+        self._smi_cache: dict[int, HardwareStats] = {}
+        self._smi_cache_ts: dict[int, float] = {}
+        self._smi_cache_lock = threading.Lock()
+
+        # NVML: initialized lazily in _ensure_nvml(). Held for the
+        # lifetime of the backend so REST and WS handlers don't fight
+        # over init/shutdown.
+        self._pynvml = None
+        self._nvml_inited = False
+        self._nvml_lock = threading.Lock()
 
     def initialize(self) -> bool:
         import platform
@@ -69,6 +99,10 @@ class LinuxNVIDIABackend(MonitorBackend):
             self.available = True
             self._initialized = True
 
+            # Try to bring up NVML once. Failure is non-fatal — we'll
+            # fall back to nvidia-smi only.
+            self._ensure_nvml()
+
             logger.info(f"Linux NVIDIA: {self.gpu_count} GPU(s) via nvidia-smi")
             return True
 
@@ -80,6 +114,15 @@ class LinuxNVIDIABackend(MonitorBackend):
         return False
 
     def get_stats(self, gpu_id: int = 0) -> HardwareStats:
+        # Fast path: serve cached result if it's still fresh. This is
+        # the common case when REST and WS both call us within 500ms.
+        now = time.time()
+        cached = self._smi_cache.get(gpu_id)
+        cached_ts = self._smi_cache_ts.get(gpu_id, 0.0)
+        if cached is not None and (now - cached_ts) < _SMI_CACHE_TTL:
+            return cached
+
+        # Slow path: actually run nvidia-smi.
         try:
             if gpu_id >= len(self._gpu_info):
                 return HardwareStats(
@@ -100,15 +143,31 @@ class LinuxNVIDIABackend(MonitorBackend):
             )
 
             # Query real-time stats via nvidia-smi
-            result = subprocess.run(
-                ["nvidia-smi",
-                 f"--id={gpu_id}",
-                 "--query-gpu=utilization.gpu,utilization.memory,memory.used,"
-                 "temperature.gpu,fan.speed,clocks.current.graphics,"
-                 "clocks.current.memory,power.draw",
-                 "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=3,
-            )
+            try:
+                result = subprocess.run(
+                    ["nvidia-smi",
+                     f"--id={gpu_id}",
+                     "--query-gpu=utilization.gpu,utilization.memory,memory.used,"
+                     "temperature.gpu,fan.speed,clocks.current.graphics,"
+                     "clocks.current.memory,power.draw",
+                     "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=3,
+                )
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    f"Linux NVIDIA: nvidia-smi timed out for GPU {gpu_id}"
+                )
+                # Reuse last known good reading if we have one.
+                if cached is not None:
+                    return cached
+                return HardwareStats(
+                    gpu_id=gpu_id,
+                    gpu_name=self.gpu_names[gpu_id] if gpu_id < len(self.gpu_names) else f"NVIDIA GPU {gpu_id}",
+                    vendor="nvidia",
+                    driver="nvidia-smi",
+                    memory_total=info['vram_bytes'],
+                    is_available=True,
+                )
 
             if result.returncode == 0 and result.stdout.strip():
                 parts = [p.strip() for p in result.stdout.strip().split(',')]
@@ -142,18 +201,22 @@ class LinuxNVIDIABackend(MonitorBackend):
                 )
                 stats.temperature = self._get_temp_fallback(gpu_id)
 
+            # === FAN FALLBACK ===
+            # nvidia-smi fan.speed returns 0 or "[Not Supported]" on many
+            # newer GPUs (RTX 40/50, server cards, some notebook drivers).
+            # When that happens, fall back to pynvml NVML which uses the
+            # driver directly and exposes fan on most cards that have one.
+            if stats.fan_speed <= 0:
+                fallback_fan = self._read_fan_via_nvml(gpu_id)
+                if fallback_fan > 0:
+                    stats.fan_speed = fallback_fan
+
+            # Store in cache for subsequent callers.
+            with self._smi_cache_lock:
+                self._smi_cache[gpu_id] = stats
+                self._smi_cache_ts[gpu_id] = time.time()
             return stats
 
-        except subprocess.TimeoutExpired:
-            logger.warning(f"Linux NVIDIA: nvidia-smi timed out for GPU {gpu_id}")
-            return HardwareStats(
-                gpu_id=gpu_id,
-                gpu_name=self.gpu_names[gpu_id] if gpu_id < len(self.gpu_names) else f"NVIDIA GPU {gpu_id}",
-                vendor="nvidia",
-                driver="nvidia-smi",
-                memory_total=self._gpu_info[gpu_id]['vram_bytes'] if gpu_id < len(self._gpu_info) else 0,
-                is_available=True,
-            )
         except Exception as e:
             logger.error(f"Linux NVIDIA get_stats({gpu_id}) error: {e}")
             return HardwareStats(
@@ -191,5 +254,69 @@ class LinuxNVIDIABackend(MonitorBackend):
             pass
         return 0.0
 
+    def _ensure_nvml(self) -> bool:
+        """Initialize NVML once. Safe to call repeatedly — no-op after success."""
+        with self._nvml_lock:
+            if self._nvml_inited:
+                return self._pynvml is not None
+            try:
+                import pynvml  # type: ignore
+            except ImportError:
+                logger.debug("Linux NVIDIA: pynvml not installed, NVML fallback unavailable")
+                self._nvml_inited = True  # don't keep retrying every call
+                self._pynvml = None
+                return False
+            try:
+                pynvml.nvmlInit()
+                self._pynvml = pynvml
+                self._nvml_inited = True
+                logger.debug("Linux NVIDIA: NVML initialized for fan fallback")
+                return True
+            except Exception as e:
+                # Driver not loaded, no permission, no NVIDIA hardware —
+                # all recoverable. Don't re-init per call.
+                logger.debug(f"Linux NVIDIA: NVML init failed: {e}")
+                self._pynvml = None
+                self._nvml_inited = True
+                return False
+
+    def _read_fan_via_nvml(self, gpu_id: int) -> int:
+        """Fallback fan reader using pynvml.
+
+        ``nvidia-smi``'s ``fan.speed`` query is unreliable on RTX 40/50 and
+        many notebook drivers — it often reports 0 or ``[Not Supported]`` even
+        when the driver has full sensor data. NVML's
+        ``nvmlDeviceGetFanSpeed`` uses the driver directly and exposes the
+        fan duty cycle as a percent (0-100) on almost every discrete
+        NVIDIA GPU.
+
+        Returns:
+            Fan duty cycle in percent (0-100), or 0 if unavailable.
+        """
+        if not self._ensure_nvml() or self._pynvml is None:
+            return 0
+        try:
+            handle = self._pynvml.nvmlDeviceGetHandleByIndex(gpu_id)
+            speed = int(self._pynvml.nvmlDeviceGetFanSpeed(handle))
+            # NVML returns 0 for fanless / passive cards — that is a real
+            # value, not an error. Caller treats >0 as "have a fan reading".
+            return max(0, min(100, speed))
+        except Exception as e:
+            # NotSupported / NotFound / Unknown — common on consumer cards
+            # with locked VBIOS or APU-like configurations.
+            logger.debug(f"Linux NVIDIA: NVML fan read failed for GPU {gpu_id}: {e}")
+            return 0
+
     def close(self):
-        pass
+        """Release NVML handle and clear caches."""
+        with self._nvml_lock:
+            if self._nvml_inited and self._pynvml is not None:
+                try:
+                    self._pynvml.nvmlShutdown()
+                except Exception as e:
+                    logger.debug(f"Linux NVIDIA: NVML shutdown error: {e}")
+                self._pynvml = None
+            self._nvml_inited = False
+        with self._smi_cache_lock:
+            self._smi_cache.clear()
+            self._smi_cache_ts.clear()

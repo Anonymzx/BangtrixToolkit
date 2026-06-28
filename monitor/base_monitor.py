@@ -40,11 +40,18 @@ class UniversalMonitor:
         self.has_apu: bool = False
         self.driver: str = ""
         self._backend: Optional[MonitorBackend] = None
-        self._ready = False          # True only after initialize() completes
+        # threading.Event (not a plain bool flag) — guarantees atomic
+        # transitions from the init thread to readers in REST/WS handlers,
+        # and lets wait_ready() block efficiently without polling.
+        self._ready_event = threading.Event()
         self._init_error: Optional[str] = None
 
         # Start background initialization in a daemon thread
-        self._init_thread = threading.Thread(target=self._background_init, daemon=True)
+        self._init_thread = threading.Thread(
+            target=self._background_init,
+            name="BangtrixToolkit-UniversalMonitor",
+            daemon=True,
+        )
         self._init_thread.start()
 
     def _background_init(self):
@@ -55,7 +62,9 @@ class UniversalMonitor:
             self._init_error = str(e)
             logger.error(f"Universal Monitor: background init failed: {e}")
         finally:
-            self._ready = True
+            # Set the event LAST so any reader blocked in wait_ready() is
+            # guaranteed to see all the fields populated by _initialize().
+            self._ready_event.set()
 
     def wait_ready(self, timeout: float = 10.0) -> bool:
         """Block until initialization finishes (for callers that can wait).
@@ -63,16 +72,15 @@ class UniversalMonitor:
         Returns True if initialization completed successfully, False if
         timeout or failure.
         """
-        if self._ready:
-            return self.available
-        if self._init_thread and self._init_thread.is_alive():
-            self._init_thread.join(timeout=timeout)
+        finished = self._ready_event.wait(timeout=timeout)
+        if not finished:
+            return False
         return self.available
 
     @property
     def ready(self) -> bool:
         """True once background initialization has completed (success or fail)."""
-        return self._ready
+        return self._ready_event.is_set()
 
     def _initialize(self):
         """Detect hardware and select best backend (runs in background thread)."""

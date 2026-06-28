@@ -1,12 +1,17 @@
+import logging
+
 import requests
 import urllib.parse
+
+logger = logging.getLogger(__name__)
+
 
 class BangtrixSimpleTranslate:
     def __init__(self):
         pass
-        
+
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         # Daftar lengkap kode bahasa yang didukung oleh Google Translate
         languages = [
             "auto", "af", "sq", "am", "ar", "hy", "az", "eu", "be", "bn", "bs", "bg", "ca", "ceb", "ny", "zh-CN", "zh-TW", "co",
@@ -41,10 +46,10 @@ class BangtrixSimpleTranslate:
                 translated_text = "".join([sentence[0] for sentence in result[0] if sentence[0]])
                 return (translated_text,)
             else:
-                print(f"[BangtrixToolkit] Warning: Translation API responded with status {response.status_code}")
+                logger.warning("BangtrixToolkit: Translation API responded with status %s", response.status_code)
                 return (text,)
         except Exception as e:
-            print(f"[BangtrixToolkit] Error during translation: {e}")
+            logger.error("BangtrixToolkit: translation error: %s", e)
             return (text,)
 
 # =========================================
