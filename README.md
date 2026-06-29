@@ -30,7 +30,7 @@ A real-time monitoring overlay displayed directly on the ComfyUI canvas. Tracks 
 <br>
 
 <div align="center">
-<img width="264" height="258" alt="image" src="https://github.com/user-attachments/assets/4e5fb35c-8cf3-4ff9-9a33-1d216d84b674" />
+<img width="313" height="289" alt="image" src="https://github.com/user-attachments/assets/c2eceef0-dcc6-4b30-af01-6bf11ff46014" />
 </div>
 
 <br>
